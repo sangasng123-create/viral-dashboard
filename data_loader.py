@@ -199,22 +199,22 @@ def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: st
             }
         )
     else:
-        link_column = next((col for col in clean_df.columns if col.endswith("_링크")), "")
+        link_column = next((col for col in clean_df.columns if col.endswith("링크")), "")
         standardized = pd.DataFrame(
             {
                 "date": to_datetime_series(
-                    get_series(clean_df, "업로드_날짜")
-                    if "업로드_날짜" in clean_df.columns
+                    get_series(clean_df, "업로드날짜")
+                    if "업로드날짜" in clean_df.columns
                     else get_series(clean_df, "날짜")
                 ),
                 "platform": platform_group,
                 "platform_group": platform_group,
                 "worker": get_series(clean_df, "작업자").map(clean_text),
                 "product_name": (
-                    get_series(clean_df, "제안_제품") if "제안_제품" in clean_df.columns else get_series(clean_df, "제품명")
+                    get_series(clean_df, "제안제품") if "제안제품" in clean_df.columns else get_series(clean_df, "제품명")
                 ).map(clean_text),
                 "manager": get_series(clean_df, "담당자").map(clean_text),
-                "transfer_status": get_series(clean_df, "이체_여부").map(clean_transfer_status),
+                "transfer_status": get_series(clean_df, "이체여부").map(clean_transfer_status),
                 "cost": to_numeric_series(
                     get_series(clean_df, "유상비용") if "유상비용" in clean_df.columns else get_series(clean_df, "비용")
                 ),
@@ -258,10 +258,10 @@ def finalize_performance_df(df: pd.DataFrame) -> pd.DataFrame:
 
     column_map = {
         "채널속성": "channel_type",
-        "nt_source": "nt_source",
-        "nt_medium": "nt_medium",
-        "nt_detail": "nt_detail",
-        "nt_keyword": "nt_keyword",
+        "ntsource": "nt_source",
+        "ntmedium": "nt_medium",
+        "ntdetail": "nt_detail",
+        "ntkeyword": "nt_keyword",
         "고객수": "customer_count",
         "유입수": "inflow_count",
         "페이지수": "page_count",
@@ -424,13 +424,11 @@ def extract_collection_date(df: pd.DataFrame) -> pd.Series:
         "수집일",
         "수집일자",
         "조회시작일",
-        "조회시작일자",
         "조회종료일",
-        "조회종료일자",
         "집계일",
         "기준일",
         "date",
-        "collected_at",
+        "collectedat",
     }
     for column in df.columns:
         if sanitize_column_name(column) in candidate_columns:
