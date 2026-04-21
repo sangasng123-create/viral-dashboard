@@ -65,6 +65,7 @@ DARK_CSS = """
     .badge {
         display: inline-block;
         margin-top: 0.7rem;
+        margin-right: 0.4rem;
         padding: 0.35rem 0.7rem;
         border-radius: 999px;
         background: rgba(59, 130, 246, 0.14);
@@ -86,14 +87,11 @@ def get_dashboard_data() -> dict[str, pd.DataFrame]:
 
 def main() -> None:
     st.markdown(DARK_CSS, unsafe_allow_html=True)
-    refresh_clicked = st.sidebar.button("원본 다시 불러오기", use_container_width=True)
 
+    refresh_clicked = st.sidebar.button("원본 다시 불러오기", use_container_width=True)
     if refresh_clicked:
         get_dashboard_data.clear()
-        try:
-            st.session_state["dashboard_data"] = get_dashboard_data()
-        except Exception as exc:
-            st.sidebar.error(f"데이터 새로고침 실패: {exc}")
+        st.session_state.pop("dashboard_data", None)
 
     if "dashboard_data" not in st.session_state:
         try:
@@ -110,10 +108,8 @@ def main() -> None:
     render_header(source_meta, matched_df)
     filtered_df = render_filters(matched_df)
 
-    matched_kpi = build_matched_kpis(filtered_df)
-    performance_kpi = build_performance_kpis(performance_df)
-    render_kpis("매칭 기준 KPI", matched_kpi)
-    render_kpis("원본 효율 DB 전체 합계", performance_kpi)
+    render_kpis("매칭 기준 KPI", build_matched_kpis(filtered_df))
+    render_kpis("원본 효율 DB 전체 합계", build_performance_kpis(performance_df))
     render_charts(filtered_df)
     render_tables(filtered_df)
 
@@ -122,10 +118,12 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
     matched_count = int(matched_df["is_matched"].fillna(False).astype(bool).sum())
     total_count = len(matched_df)
     coverage = matched_count / total_count * 100 if total_count else 0
-    source_path = source_meta["source_url"]
-    collection_rule = source_meta.get("collection_rule", "")
-    latest_collection_date = source_meta.get("latest_collection_date", "")
-    load_errors = source_meta.get("load_errors", "")
+
+    source_url = str(source_meta.get("source_url", ""))
+    collection_rule = str(source_meta.get("collection_rule", ""))
+    latest_collection_date = str(source_meta.get("latest_collection_date", ""))
+    load_errors = str(source_meta.get("load_errors", ""))
+
     st.markdown(
         f"""
         <div class="panel">
@@ -133,7 +131,7 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
             <div class="hero-subtitle">
                 공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 재계산해 통합한 Streamlit MVP
             </div>
-            <div class="badge">원본 시트: {source_path}</div>
+            <div class="badge">원본 시트: {source_url}</div>
             <div class="badge">매칭률: {coverage:.1f}% ({matched_count}/{total_count})</div>
             <div class="badge">집계 규칙: {collection_rule}</div>
             <div class="badge">최신 수집일: {latest_collection_date or "미사용"}</div>
@@ -141,6 +139,7 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
         """,
         unsafe_allow_html=True,
     )
+
     if load_errors:
         st.warning(f"일부 시트 로딩 실패: {load_errors}")
 
@@ -149,8 +148,9 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     st.sidebar.header("필터")
 
     valid_dates = df["date"].dropna()
-    min_date = valid_dates.min().date() if not valid_dates.empty else pd.Timestamp.today().date()
-    max_date = valid_dates.max().date() if not valid_dates.empty else pd.Timestamp.today().date()
+    today = pd.Timestamp.today().date()
+    min_date = valid_dates.min().date() if not valid_dates.empty else today
+    max_date = valid_dates.max().date() if not valid_dates.empty else today
 
     date_range = st.sidebar.date_input(
         "기간",
@@ -158,25 +158,28 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
         min_value=min_date,
         max_value=max_date,
     )
-    platforms = sorted(option for option in df["platform"].dropna().unique().tolist() if option)
-    workers = sorted(option for option in df["worker"].dropna().unique().tolist() if option)
-    products = sorted(option for option in df["product_name"].dropna().unique().tolist() if option)
-    managers = sorted(option for option in df["manager"].dropna().unique().tolist() if option)
-    transfer_options = sorted(option for option in df["transfer_status"].dropna().unique().tolist() if option)
+
+    platforms = sorted(x for x in df["platform"].dropna().unique().tolist() if x)
+    workers = sorted(x for x in df["worker"].dropna().unique().tolist() if x)
+    products = sorted(x for x in df["product_name"].dropna().unique().tolist() if x)
+    managers = sorted(x for x in df["manager"].dropna().unique().tolist() if x)
+    transfers = sorted(x for x in df["transfer_status"].dropna().unique().tolist() if x)
 
     selected_platforms = st.sidebar.multiselect("플랫폼", platforms, default=platforms)
     selected_workers = st.sidebar.multiselect("작업자", workers)
     selected_products = st.sidebar.multiselect("제품명", products)
     selected_managers = st.sidebar.multiselect("담당자", managers)
-    selected_transfers = st.sidebar.multiselect("이체 여부", transfer_options, default=transfer_options)
+    selected_transfers = st.sidebar.multiselect("이체 여부", transfers, default=transfers)
 
     filtered = df.copy()
     if len(date_range) == 2:
         start_date, end_date = map(pd.Timestamp, date_range)
+        end_dt = end_date + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         filtered = filtered[
             filtered["date"].isna()
-            | ((filtered["date"] >= start_date) & (filtered["date"] <= end_date + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)))
+            | ((filtered["date"] >= start_date) & (filtered["date"] <= end_dt))
         ]
+
     if selected_platforms:
         filtered = filtered[filtered["platform"].isin(selected_platforms)]
     if selected_workers:
@@ -193,42 +196,42 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def build_matched_kpis(df: pd.DataFrame) -> dict[str, float]:
-    cost = df["cost"].sum()
-    payment_amount = df["payment_amount"].sum()
-    roas = payment_amount / cost * 100 if cost else 0
+    total_cost = float(df["cost"].sum())
+    payment_amount = float(df["payment_amount"].sum())
+    roas = payment_amount / total_cost * 100 if total_cost else 0.0
+
     return {
         "총 작업 수": float(len(df)),
-        "총 비용": float(cost),
+        "총 비용": total_cost,
         "매칭 고객수": float(df["customer_count"].sum()),
         "매칭 유입수": float(df["inflow_count"].sum()),
         "매칭 페이지수": float(df["page_count"].sum()),
         "매칭 결제수": float(df["payment_count"].sum()),
-        "매칭 결제금액": float(payment_amount),
-        "매칭 ROAS": float(roas),
+        "매칭 결제금액": payment_amount,
+        "매칭 ROAS": roas,
     }
 
 
 def build_performance_kpis(df: pd.DataFrame) -> dict[str, float]:
-    payment_amount = df["payment_amount"].sum()
-    attributed_amount = df["payment_amount_attributed"].sum()
     return {
         "효율DB 고객수": float(df["customer_count"].sum()),
         "효율DB 유입수": float(df["inflow_count"].sum()),
         "효율DB 페이지수": float(df["page_count"].sum()),
         "효율DB 결제수": float(df["payment_count"].sum()),
-        "효율DB 결제금액": float(payment_amount),
-        "효율DB 기여결제금액": float(attributed_amount),
+        "효율DB 결제금액": float(df["payment_amount"].sum()),
+        "효율DB 기여결제수": float(df["payment_count_attributed"].sum()),
+        "효율DB 기여결제금액": float(df["payment_amount_attributed"].sum()),
     }
 
 
-def render_kpis(title: str, kpi: dict[str, float]) -> None:
+def render_kpis(title: str, metrics: dict[str, float]) -> None:
     st.markdown(f"### {title}")
-    labels = list(kpi.keys())
     columns = st.columns(4)
-    for idx, label in enumerate(labels):
+    count_tokens = ("작업 수", "고객수", "유입수", "페이지수", "결제수")
+
+    for idx, (label, value) in enumerate(metrics.items()):
         with columns[idx % 4]:
-            value = kpi[label]
-            if any(token in label for token in ["작업 수", "고객수", "유입수", "페이지수", "결제수"]):
+            if any(token in label for token in count_tokens):
                 st.metric(label, f"{value:,.0f}")
             elif "ROAS" in label:
                 st.metric(label, f"{value:,.1f}%")
@@ -238,11 +241,12 @@ def render_kpis(title: str, kpi: dict[str, float]) -> None:
 
 def render_charts(df: pd.DataFrame) -> None:
     left, right = st.columns((1.1, 0.9))
+
     with left:
         st.markdown("### 플랫폼별 비용 vs 결제금액")
         platform_summary = summarize_by_platform(df)
         if platform_summary.empty:
-            st.info("표시할 플랫폼 요약 데이터가 없습니다.")
+            st.info("표시할 플랫폼별 요약 데이터가 없습니다.")
         else:
             chart_df = platform_summary.melt(
                 id_vars="platform",
@@ -258,11 +262,7 @@ def render_charts(df: pd.DataFrame) -> None:
                 barmode="group",
                 template="plotly_dark",
                 color_discrete_sequence=["#60a5fa", "#34d399"],
-                labels={
-                    "platform": "플랫폼",
-                    "금액": "금액",
-                    "지표": "지표",
-                },
+                labels={"platform": "플랫폼", "금액": "금액", "지표": "지표"},
             )
             fig.update_layout(
                 height=360,
@@ -282,7 +282,7 @@ def render_charts(df: pd.DataFrame) -> None:
             .sum()
         )
         if daily.empty:
-            st.info("표시할 날짜 데이터가 없습니다.")
+            st.info("표시할 일자 데이터가 없습니다.")
         else:
             fig = px.line(
                 daily,
@@ -307,8 +307,7 @@ def render_tables(df: pd.DataFrame) -> None:
     st.dataframe(format_summary_table(summarize_by_platform(df)), use_container_width=True, hide_index=True)
 
     st.markdown("### 작업자별 성과 요약")
-    worker_summary = summarize_by_worker(df)
-    st.dataframe(format_summary_table(worker_summary), use_container_width=True, hide_index=True)
+    st.dataframe(format_summary_table(summarize_by_worker(df)), use_container_width=True, hide_index=True)
 
     st.markdown("### 작업 상세 리스트")
     detail_columns = [
@@ -359,6 +358,11 @@ def render_tables(df: pd.DataFrame) -> None:
 
 
 def summarize_by_platform(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(
+            columns=["platform", "작업수", "총비용", "고객수", "유입수", "페이지수", "결제수", "결제금액", "매칭건수", "ROAS", "매칭률"]
+        )
+
     summary = (
         df.groupby("platform", dropna=False)
         .agg(
@@ -372,7 +376,6 @@ def summarize_by_platform(df: pd.DataFrame) -> pd.DataFrame:
             매칭건수=("is_matched", "sum"),
         )
         .reset_index()
-        .rename(columns={"platform": "platform"})
     )
     summary["ROAS"] = summary.apply(
         lambda row: row["결제금액"] / row["총비용"] * 100 if row["총비용"] else 0,
@@ -389,6 +392,11 @@ def summarize_by_worker(df: pd.DataFrame) -> pd.DataFrame:
     working_df = df.copy()
     working_df["worker"] = working_df["worker"].fillna("").astype(str).str.strip()
     working_df = working_df[working_df["worker"].ne("")].copy()
+
+    if working_df.empty:
+        return pd.DataFrame(
+            columns=["작업자", "작업수", "총비용", "고객수", "유입수", "페이지수", "결제수", "결제금액", "매칭건수", "ROAS", "매칭률"]
+        )
 
     summary = (
         working_df.groupby("worker", dropna=False)
@@ -426,7 +434,6 @@ def format_summary_table(df: pd.DataFrame) -> pd.DataFrame:
         else:
             formatted[column] = formatted[column].map(lambda value: f"{value:,.0f}")
     return formatted
-
 
 
 if __name__ == "__main__":

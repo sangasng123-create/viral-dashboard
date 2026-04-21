@@ -22,7 +22,6 @@ SHEET_GIDS = {
     "(DB)바이럴 효율": "1675730631",
 }
 
-
 PAID_COLUMNS = [
     "row_id",
     "date",
@@ -65,15 +64,6 @@ MAX_VALUE_METRICS = [
     "payment_amount_attributed",
 ]
 
-MATCH_OUTPUT_COLUMNS = PERFORMANCE_METRICS + [
-    "match_status",
-    "is_matched",
-    "match_key",
-    "matched_nt_source",
-    "match_method",
-    "unmatched_reason",
-]
-
 
 @dataclass(frozen=True)
 class WorkbookSheets:
@@ -82,26 +72,16 @@ class WorkbookSheets:
 
 
 def load_data() -> dict[str, pd.DataFrame]:
-    """Load and transform raw workbook sheets into dashboard-ready DataFrames.
-
-    This function is intentionally isolated so the data source can later be swapped
-    without changing the dashboard layer.
-    """
     raw_data, load_errors = load_google_public_sheets_data()
     sheets = identify_sheets(raw_data.keys())
 
-    paid_frames = []
+    paid_frames: list[pd.DataFrame] = []
     for platform_group, sheet_name in sheets.paid.items():
-        raw_df = raw_data.get(sheet_name, pd.DataFrame())
-        standardized = standardize_paid_sheet(raw_df, platform_group, sheet_name)
+        standardized = standardize_paid_sheet(raw_data.get(sheet_name, pd.DataFrame()), platform_group, sheet_name)
         if not standardized.empty:
             paid_frames.append(standardized)
 
-    paid_df = (
-        pd.concat(paid_frames, ignore_index=True)
-        if paid_frames
-        else pd.DataFrame(columns=PAID_COLUMNS)
-    )
+    paid_df = pd.concat(paid_frames, ignore_index=True) if paid_frames else pd.DataFrame(columns=PAID_COLUMNS)
     paid_df = finalize_paid_df(paid_df)
 
     performance_raw = raw_data.get(sheets.performance, pd.DataFrame())
@@ -117,22 +97,24 @@ def load_data() -> dict[str, pd.DataFrame]:
         latest_collection_date = ""
         earliest_collection_date = ""
 
+    source_meta = pd.DataFrame(
+        [
+            {
+                "source_url": SPREADSHEET_URL,
+                "collection_rule": "키별 최신 수집일 유지, 트래픽은 최신 기준·결제는 최대값 기준",
+                "latest_collection_date": latest_collection_date,
+                "earliest_collection_date": earliest_collection_date,
+                "load_errors": " | ".join(load_errors),
+            }
+        ]
+    )
+
     return {
         "paid": paid_df,
         "performance": performance_df,
         "matched": matched_df,
         "unmatched": unmatched_df,
-        "source_path": pd.DataFrame(
-            [
-                {
-                    "source_url": SPREADSHEET_URL,
-                    "collection_rule": "키별 최신 수집일 유지, 트래픽은 최신 기준·결제는 최대값 기준",
-                    "latest_collection_date": latest_collection_date,
-                    "earliest_collection_date": earliest_collection_date,
-                    "load_errors": " | ".join(load_errors),
-                }
-            ]
-        ),
+        "source_path": source_meta,
     }
 
 
@@ -143,6 +125,7 @@ def build_csv_url(spreadsheet_id: str, gid: str) -> str:
 def load_google_public_sheets_data() -> tuple[dict[str, pd.DataFrame], list[str]]:
     data: dict[str, pd.DataFrame] = {}
     errors: list[str] = []
+
     for sheet_name, gid in SHEET_GIDS.items():
         csv_url = build_csv_url(SPREADSHEET_ID, gid)
         try:
@@ -152,6 +135,7 @@ def load_google_public_sheets_data() -> tuple[dict[str, pd.DataFrame], list[str]
         except (HTTPError, URLError, TimeoutError, ConnectionError, OSError) as exc:
             data[sheet_name] = pd.DataFrame()
             errors.append(f"{sheet_name}: {exc.__class__.__name__}")
+
     return data, errors
 
 
@@ -163,8 +147,7 @@ def identify_sheets(sheet_names: Iterable[str]) -> WorkbookSheets:
         compact = normalize_sheet_name(name)
         if "db" not in compact:
             continue
-
-        if "바이럴" in compact and "효율" in compact:
+        if "바이럴효율" in compact:
             performance = name
         elif "블로그" in compact:
             paid["블로그"] = name
@@ -172,7 +155,7 @@ def identify_sheets(sheet_names: Iterable[str]) -> WorkbookSheets:
             paid["인스타그램"] = name
         elif "유튜브" in compact:
             paid["유튜브"] = name
-        elif re.search(r"\bX\b", name):
+        elif re.search(r"\bx\b", name.lower()):
             paid["X"] = name
         elif "커뮤니티" in compact:
             paid["커뮤니티"] = name
@@ -186,7 +169,7 @@ def identify_sheets(sheet_names: Iterable[str]) -> WorkbookSheets:
 
 
 def normalize_sheet_name(value: str) -> str:
-    return re.sub(r"\s+", "", (value or "")).lower()
+    return re.sub(r"\s+", "", clean_text(value)).lower()
 
 
 def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: str) -> pd.DataFrame:
@@ -228,16 +211,12 @@ def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: st
                 "platform_group": platform_group,
                 "worker": get_series(clean_df, "작업자").map(clean_text),
                 "product_name": (
-                    get_series(clean_df, "제안_제품")
-                    if "제안_제품" in clean_df.columns
-                    else get_series(clean_df, "제품명")
+                    get_series(clean_df, "제안_제품") if "제안_제품" in clean_df.columns else get_series(clean_df, "제품명")
                 ).map(clean_text),
                 "manager": get_series(clean_df, "담당자").map(clean_text),
                 "transfer_status": get_series(clean_df, "이체_여부").map(clean_transfer_status),
                 "cost": to_numeric_series(
-                    get_series(clean_df, "유상비용")
-                    if "유상비용" in clean_df.columns
-                    else get_series(clean_df, "비용")
+                    get_series(clean_df, "유상비용") if "유상비용" in clean_df.columns else get_series(clean_df, "비용")
                 ),
                 "keyword": get_series(clean_df, "키워드").map(clean_text),
                 "url": get_series(clean_df, link_column).map(clean_text) if link_column else "",
@@ -249,10 +228,6 @@ def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: st
     standardized["row_id"] = [f"{platform_group}-{idx + 1}" for idx in range(len(standardized))]
     standardized = standardized.reindex(columns=PAID_COLUMNS[:-3])
     standardized = standardized.dropna(how="all", subset=["date", "worker", "product_name", "cost", "keyword"])
-
-    if platform_group == "브랜드커넥트" and standardized.empty:
-        return pd.DataFrame(columns=PAID_COLUMNS)
-
     return standardized
 
 
@@ -271,7 +246,6 @@ def finalize_paid_df(df: pd.DataFrame) -> pd.DataFrame:
     result["url"] = result["url"].map(clean_text)
     result["notes"] = result["notes"].map(clean_text)
     result["cost"] = to_numeric_series(result["cost"]).fillna(0)
-
     result["match_nt_detail"] = result["worker"].map(normalize_match_text)
     result["match_nt_keyword"] = result["keyword"].map(normalize_match_text)
     result["match_nt_source"] = result.apply(build_primary_nt_source, axis=1)
@@ -279,6 +253,9 @@ def finalize_paid_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def finalize_performance_df(df: pd.DataFrame) -> pd.DataFrame:
+    working = df.copy()
+    working.columns = [sanitize_column_name(col) for col in working.columns]
+
     column_map = {
         "채널속성": "channel_type",
         "nt_source": "nt_source",
@@ -290,11 +267,11 @@ def finalize_performance_df(df: pd.DataFrame) -> pd.DataFrame:
         "페이지수": "page_count",
         "결제수": "payment_count",
         "결제금액": "payment_amount",
-        "결제수(+14일기여도추정)": "payment_count_attributed",
-        "결제금액(+14일기여도추정)": "payment_amount_attributed",
+        "결제수+14일기여도추정": "payment_count_attributed",
+        "결제금액+14일기여도추정": "payment_amount_attributed",
     }
+    working = working.rename(columns=column_map)
 
-    working = df.rename(columns=column_map).copy()
     required = list(column_map.values())
     for column in required:
         if column not in working.columns:
@@ -310,10 +287,7 @@ def finalize_performance_df(df: pd.DataFrame) -> pd.DataFrame:
     for metric in PERFORMANCE_METRICS:
         working[metric] = to_numeric_series(working[metric]).fillna(0)
 
-    key_columns = ["nt_source", "nt_detail", "nt_keyword"]
-    grouped = collapse_cumulative_performance_rows(working, key_columns)
-
-    return grouped
+    return collapse_cumulative_performance_rows(working, ["nt_source", "nt_detail", "nt_keyword"])
 
 
 def match_paid_with_performance(
@@ -329,6 +303,8 @@ def match_paid_with_performance(
         empty["match_key"] = ""
         empty["matched_nt_source"] = ""
         empty["match_method"] = ""
+        empty["perf_debug_rows"] = ""
+        empty["perf_latest_collected_at"] = ""
         empty["unmatched_reason"] = "유상작업 데이터 없음"
         return empty, empty.copy()
 
@@ -341,11 +317,12 @@ def match_paid_with_performance(
     perf_candidates = perf_lookup.to_dict(orient="records")
     used_perf_keys: set[str] = set()
 
-    records = []
+    records: list[dict] = []
     for _, row in paid_df.iterrows():
-        matched = None
+        matched: dict | None = None
         matched_source = ""
         match_method = ""
+
         for candidate_source in build_nt_source_candidates(row):
             key = build_match_key(candidate_source, row["match_nt_detail"], row["match_nt_keyword"])
             if key in perf_map and key not in used_perf_keys:
@@ -370,7 +347,8 @@ def match_paid_with_performance(
             row["match_nt_keyword"],
         )
         record["matched_nt_source"] = matched_source
-        if matched:
+
+        if matched is not None:
             for metric in PERFORMANCE_METRICS:
                 record[metric] = matched.get(metric, 0)
             record["match_status"] = "매칭"
@@ -417,8 +395,6 @@ def build_nt_source_candidates(row: pd.Series) -> list[str]:
         return ["nshoplive"]
     if platform_group == "커뮤니티":
         normalized_platform = normalize_nt_source(platform_value)
-        if normalized_platform in {"카페", "cafe"}:
-            return ["café", "cafe"]
         return [normalized_platform] if normalized_platform else []
     return [normalize_nt_source(platform_group)]
 
@@ -444,28 +420,20 @@ def infer_unmatched_reason(row: pd.Series) -> str:
 
 
 def extract_collection_date(df: pd.DataFrame) -> pd.Series:
-    candidate_columns = [
+    candidate_columns = {
         "수집일",
-        "수집 일",
-        "수집날짜",
-        "수집 날짜",
-        "조회 종료일",
-        "조회종료일",
-        "조회 종료 일",
-        "조회 시작일",
+        "수집일자",
         "조회시작일",
-        "조회 시작 일",
+        "조회시작일자",
+        "조회종료일",
+        "조회종료일자",
         "집계일",
-        "집계 일",
         "기준일",
-        "기준 일",
-        "날짜",
-        "일자",
         "date",
         "collected_at",
-    ]
+    }
     for column in df.columns:
-        if clean_text(column) in candidate_columns:
+        if sanitize_column_name(column) in candidate_columns:
             return parse_flexible_date_series(df[column])
     return pd.Series([pd.NaT] * len(df), index=df.index, dtype="datetime64[ns]")
 
@@ -475,30 +443,36 @@ def collapse_cumulative_performance_rows(
     key_columns: list[str],
 ) -> pd.DataFrame:
     if working.empty:
-        return pd.DataFrame(columns=key_columns + PERFORMANCE_METRICS)
+        return pd.DataFrame(
+            columns=key_columns
+            + PERFORMANCE_METRICS
+            + ["perf_debug_rows", "perf_latest_collected_at"]
+        )
 
     working = working.copy()
     working["effective_collected_at"] = working["collected_at"]
 
     if working["effective_collected_at"].notna().sum() == 0:
-        return (
+        grouped = (
             working.groupby(key_columns, dropna=False, as_index=False)[PERFORMANCE_METRICS]
             .sum()
             .sort_values(key_columns)
             .reset_index(drop=True)
         )
+        grouped["perf_debug_rows"] = ""
+        grouped["perf_latest_collected_at"] = ""
+        return grouped
 
-    collapsed_rows = []
+    collapsed_rows: list[dict] = []
     for _, group in working.groupby(key_columns, dropna=False, sort=False):
         if group.empty:
             continue
 
-        # 키별 최신 수집일만 선택하고, 최신 수집일에 없는 키는 과거 값을 그대로 유지한다.
         if group["effective_collected_at"].notna().any():
             latest_timestamp = group["effective_collected_at"].max()
             latest_group = group.loc[group["effective_collected_at"].eq(latest_timestamp)].copy()
         else:
-            latest_group = group.sort_values("row_order").tail(1)
+            latest_group = group.sort_values("row_order").tail(1).copy()
 
         if latest_group.empty:
             continue
@@ -509,7 +483,12 @@ def collapse_cumulative_performance_rows(
             "nt_keyword": latest_group.iloc[0]["nt_keyword"],
             "perf_debug_rows": " | ".join(
                 latest_group.apply(
-                    lambda row: f"{clean_text(row.get('channel_type'))}/{clean_text(row.get('nt_source'))}/{clean_text(row.get('nt_detail'))}/{clean_text(row.get('nt_keyword'))}",
+                    lambda row: (
+                        f"{clean_text(row.get('channel_type'))}/"
+                        f"{clean_text(row.get('nt_source'))}/"
+                        f"{clean_text(row.get('nt_detail'))}/"
+                        f"{clean_text(row.get('nt_keyword'))}"
+                    ),
                     axis=1,
                 ).tolist()
             ),
@@ -520,12 +499,9 @@ def collapse_cumulative_performance_rows(
             ),
         }
 
-        # 트래픽 지표는 최신 수집일 스냅샷 기준으로 합산한다.
         for metric in LATEST_SNAPSHOT_METRICS:
             row_data[metric] = latest_group[metric].sum()
 
-        # 결제 지표는 최신 스냅샷에서 0으로 내려갈 수 있으므로,
-        # 같은 키 전체 이력 중 최대값을 사용한다.
         for metric in MAX_VALUE_METRICS:
             row_data[metric] = group[metric].max()
 
@@ -556,7 +532,7 @@ def find_reverse_match(
     if not relevant:
         return None
 
-    scored = []
+    scored: list[tuple[int, dict]] = []
     for candidate in relevant:
         score = reverse_match_score(row, candidate)
         if score > 0:
@@ -595,7 +571,7 @@ def reverse_match_score(row: pd.Series, candidate: dict) -> int:
         if abs((paid_date.normalize() - keyword_date).days) <= 21:
             score += 2
 
-    if score == 0 and len(candidate_keyword) > 0 and candidate_keyword not in {"-", "shoppinglive"}:
+    if score == 0 and candidate_keyword and candidate_keyword not in {"-", "shoppinglive"}:
         score += 1
 
     return score
@@ -603,12 +579,13 @@ def reverse_match_score(row: pd.Series, candidate: dict) -> int:
 
 def sanitize_column_name(value: object) -> str:
     text = clean_text(value)
-    text = text.replace(" ", "_")
+    text = text.replace(" ", "")
     text = text.replace("/", "_")
     text = text.replace("(", "")
     text = text.replace(")", "")
     text = text.replace(".", "")
-    text = text.replace("-", "_")
+    text = text.replace("-", "")
+    text = text.replace("_", "")
     return text.lower()
 
 
@@ -634,13 +611,11 @@ def clean_text(value: object) -> str:
 
 def normalize_match_text(value: object) -> str:
     text = unicodedata.normalize("NFKC", clean_text(value)).lower()
-    text = re.sub(r"\s+", "", text)
-    return text
+    return re.sub(r"\s+", "", text)
 
 
 def normalize_nt_source(value: object) -> str:
     text = normalize_match_text(value)
-    text = text.replace("café", "café")
     aliases = {
         "blog": "naverblog",
         "블로그": "naverblog",
@@ -658,7 +633,7 @@ def normalize_nt_source(value: object) -> str:
         "nshoplive": "nshoplive",
         "toss": "toss",
         "cafe": "cafe",
-        "café": "café",
+        "카페": "cafe",
     }
     return aliases.get(text, text)
 
@@ -714,9 +689,8 @@ def get_series(df: pd.DataFrame, column: str) -> pd.Series:
 
 
 def parse_flexible_date_series(series: pd.Series) -> pd.Series:
-    raw = series.copy()
     text = (
-        raw.astype(str)
+        series.astype(str)
         .str.strip()
         .replace({"": pd.NA, "nan": pd.NA, "NaT": pd.NA, "None": pd.NA})
     )
