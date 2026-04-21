@@ -65,7 +65,7 @@ DARK_CSS = """
     .badge {
         display: inline-block;
         margin-top: 0.7rem;
-        margin-right: 0.4rem;
+        margin-right: 0.45rem;
         padding: 0.35rem 0.7rem;
         border-radius: 999px;
         background: rgba(59, 130, 246, 0.14);
@@ -78,6 +78,18 @@ DARK_CSS = """
     }
 </style>
 """
+
+
+TABLE_FALLBACK_COLUMNS = {
+    "perf_latest_collected_at": "",
+    "perf_debug_rows": "",
+    "match_nt_source": "",
+    "match_nt_detail": "",
+    "match_nt_keyword": "",
+    "unmatched_reason": "",
+    "match_method": "",
+    "match_status": "",
+}
 
 
 @st.cache_data(show_spinner=False, ttl=300)
@@ -101,7 +113,7 @@ def main() -> None:
             return
 
     data = st.session_state["dashboard_data"]
-    matched_df = data["matched"].copy()
+    matched_df = ensure_table_columns(data["matched"].copy())
     performance_df = data["performance"].copy()
     source_meta = data["source_path"].iloc[0]
 
@@ -112,6 +124,14 @@ def main() -> None:
     render_kpis("원본 효율 DB 전체 합계", build_performance_kpis(performance_df))
     render_charts(filtered_df)
     render_tables(filtered_df)
+
+
+def ensure_table_columns(df: pd.DataFrame) -> pd.DataFrame:
+    working_df = df.copy()
+    for column, default_value in TABLE_FALLBACK_COLUMNS.items():
+        if column not in working_df.columns:
+            working_df[column] = default_value
+    return working_df
 
 
 def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
@@ -133,7 +153,7 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
             </div>
             <div class="badge">원본 시트: {source_url}</div>
             <div class="badge">매칭률: {coverage:.1f}% ({matched_count}/{total_count})</div>
-            <div class="badge">집계 규칙: {collection_rule}</div>
+            <div class="badge">집계 규칙: {collection_rule or "미설정"}</div>
             <div class="badge">최신 수집일: {latest_collection_date or "미사용"}</div>
         </div>
         """,
@@ -163,13 +183,13 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     workers = sorted(x for x in df["worker"].dropna().unique().tolist() if x)
     products = sorted(x for x in df["product_name"].dropna().unique().tolist() if x)
     managers = sorted(x for x in df["manager"].dropna().unique().tolist() if x)
-    transfers = sorted(x for x in df["transfer_status"].dropna().unique().tolist() if x)
+    transfer_options = sorted(x for x in df["transfer_status"].dropna().unique().tolist() if x)
 
     selected_platforms = st.sidebar.multiselect("플랫폼", platforms, default=platforms)
     selected_workers = st.sidebar.multiselect("작업자", workers)
     selected_products = st.sidebar.multiselect("제품명", products)
     selected_managers = st.sidebar.multiselect("담당자", managers)
-    selected_transfers = st.sidebar.multiselect("이체 여부", transfers, default=transfers)
+    selected_transfers = st.sidebar.multiselect("이체 여부", transfer_options, default=transfer_options)
 
     filtered = df.copy()
     if len(date_range) == 2:
@@ -303,11 +323,13 @@ def render_charts(df: pd.DataFrame) -> None:
 
 
 def render_tables(df: pd.DataFrame) -> None:
+    working_df = ensure_table_columns(df)
+
     st.markdown("### 플랫폼별 성과 요약")
-    st.dataframe(format_summary_table(summarize_by_platform(df)), use_container_width=True, hide_index=True)
+    st.dataframe(format_summary_table(summarize_by_platform(working_df)), use_container_width=True, hide_index=True)
 
     st.markdown("### 작업자별 성과 요약")
-    st.dataframe(format_summary_table(summarize_by_worker(df)), use_container_width=True, hide_index=True)
+    st.dataframe(format_summary_table(summarize_by_worker(working_df)), use_container_width=True, hide_index=True)
 
     st.markdown("### 작업 상세 리스트")
     detail_columns = [
@@ -329,12 +351,12 @@ def render_tables(df: pd.DataFrame) -> None:
         "perf_latest_collected_at",
         "perf_debug_rows",
     ]
-    detail_df = df[detail_columns].sort_values(["date", "platform", "worker"], ascending=[False, True, True]).copy()
+    detail_df = working_df[detail_columns].sort_values(["date", "platform", "worker"], ascending=[False, True, True]).copy()
     detail_df["date"] = detail_df["date"].dt.strftime("%Y-%m-%d").fillna("")
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
     st.markdown("### 매칭 실패 리스트")
-    unmatched = df[df["match_status"] == "미매칭"][
+    unmatched = working_df[working_df["match_status"] == "미매칭"][
         [
             "date",
             "platform",
