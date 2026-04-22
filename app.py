@@ -313,7 +313,7 @@ def render_charts(df: pd.DataFrame) -> None:
     daily_trend = build_time_series(df, "D")
     weekly_trend = build_time_series(df, "W-MON")
     monthly_trend = build_time_series(df, "M")
-    transfer_df = summarize_transfer_status(df)
+    revenue_share_df = summarize_revenue_share(summary_by_platform)
 
     top_left, top_right = st.columns((1.08, 0.92))
 
@@ -432,34 +432,26 @@ def render_charts(df: pd.DataFrame) -> None:
     bottom_left, bottom_right = st.columns(2)
 
     with bottom_left:
-        st.markdown("### 플랫폼별 ROAS / 매칭률")
+        st.markdown("### 플랫폼별 유입수 vs ROAS")
         if summary_by_platform.empty:
             st.info("표시할 플랫폼 효율 데이터가 없습니다.")
         else:
-            metric_df = (
-                summary_by_platform.sort_values("roas", ascending=False)
-                .melt(
-                    id_vars="platform",
-                    value_vars=["roas", "match_rate"],
-                    var_name="metric",
-                    value_name="value",
-                )
+            platform_efficiency = summary_by_platform.sort_values(
+                ["payment_amount", "roas"],
+                ascending=[False, False],
             )
-            metric_df["metric_label"] = metric_df["metric"].map(DISPLAY_NAMES)
-            fig = px.bar(
-                metric_df,
-                x="platform",
-                y="value",
-                color="metric_label",
-                barmode="group",
+            fig = px.scatter(
+                platform_efficiency,
+                x="inflow_count",
+                y="roas",
+                size="payment_amount",
+                color="platform",
                 template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["roas"]: CHART_COLORS["roas"],
-                    DISPLAY_NAMES["match_rate"]: CHART_COLORS["match_rate"],
-                },
-                labels={"platform": "플랫폼", "value": "비율 (%)", "metric_label": "지표"},
+                labels={"inflow_count": "유입수", "roas": "ROAS (%)", "platform": "플랫폼"},
+                hover_data={"payment_amount": ":,.0f", "cost": ":,.0f", "payment_count": ":,.0f"},
             )
             fig.update_yaxes(ticksuffix="%")
+            fig.update_traces(marker=dict(line=dict(width=1, color="rgba(255,255,255,0.35)")))
             apply_chart_layout(fig, 340)
             st.plotly_chart(fig, use_container_width=True)
 
@@ -495,14 +487,14 @@ def render_charts(df: pd.DataFrame) -> None:
             apply_chart_layout(fig, 340)
             st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("### 전환 상태별 작업 수")
-    if transfer_df.empty:
-        st.info("표시할 전환 상태 데이터가 없습니다.")
+    st.markdown("### 플랫폼별 결제금액 비중")
+    if revenue_share_df.empty:
+        st.info("표시할 결제금액 비중 데이터가 없습니다.")
     else:
         fig = px.pie(
-            transfer_df,
-            names="transfer_status",
-            values="rows",
+            revenue_share_df,
+            names="platform",
+            values="payment_amount",
             template="plotly_dark",
             hole=0.52,
             color_discrete_sequence=["#38bdf8", "#34d399", "#f59e0b", "#f87171", "#f472b6"],
@@ -551,6 +543,15 @@ def summarize_chart_metrics(df: pd.DataFrame, group_column: str) -> pd.DataFrame
         axis=1,
     )
     return summary
+
+
+def summarize_revenue_share(summary_by_platform: pd.DataFrame) -> pd.DataFrame:
+    if summary_by_platform.empty:
+        return pd.DataFrame(columns=["platform", "payment_amount"])
+
+    revenue_share_df = summary_by_platform[["platform", "payment_amount"]].copy()
+    revenue_share_df = revenue_share_df[revenue_share_df["payment_amount"] > 0].copy()
+    return revenue_share_df.sort_values("payment_amount", ascending=False).reset_index(drop=True)
 
 
 def build_time_series(df: pd.DataFrame, freq: str) -> pd.DataFrame:
