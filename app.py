@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+import unicodedata
+
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -17,61 +20,186 @@ st.set_page_config(
 
 DARK_CSS = """
 <style>
+    :root {
+        --bg-main: #0b1020;
+        --bg-grad-top: #121828;
+        --bg-grad-bottom: #0f172a;
+        --panel: rgba(18, 24, 39, 0.92);
+        --panel-soft: rgba(20, 28, 46, 0.90);
+        --panel-elevated: rgba(14, 19, 33, 0.98);
+        --line: rgba(148, 163, 184, 0.14);
+        --line-strong: rgba(148, 163, 184, 0.22);
+        --text-main: #f8fafc;
+        --text-soft: #aeb8cc;
+        --text-dim: #7f8aa3;
+        --accent: #7c5cff;
+        --accent-soft: rgba(124, 92, 255, 0.16);
+        --accent-2: #22c55e;
+        --accent-3: #f59e0b;
+    }
     .stApp {
         background:
-            radial-gradient(circle at top left, rgba(59,130,246,0.18), transparent 28%),
-            radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 22%),
-            linear-gradient(180deg, #0a0f1f 0%, #111827 52%, #0b1220 100%);
-        color: #e5eefc;
+            radial-gradient(circle at 12% 0%, rgba(124, 92, 255, 0.16), transparent 24%),
+            radial-gradient(circle at 100% 20%, rgba(34, 197, 94, 0.08), transparent 18%),
+            linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-bottom) 46%, var(--bg-main) 100%);
+        color: var(--text-main);
     }
     .block-container {
-        padding-top: 1.4rem;
-        padding-bottom: 2rem;
-        max-width: 1480px;
+        max-width: 1450px;
+        padding-top: 1.35rem;
+        padding-bottom: 2.1rem;
     }
-    .panel {
-        background: rgba(15, 23, 42, 0.76);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        border-radius: 22px;
-        padding: 1.2rem 1.3rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 16px 38px rgba(2, 6, 23, 0.22);
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, rgba(10, 14, 26, 0.98) 0%, rgba(15, 21, 36, 0.98) 100%);
+        border-right: 1px solid rgba(148, 163, 184, 0.10);
     }
-    div[data-testid="stMetric"] {
-        background: rgba(15, 23, 42, 0.82);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 18px;
-        padding: 18px 18px 14px 18px;
-        box-shadow: 0 12px 32px rgba(2, 6, 23, 0.28);
+    [data-testid="stSidebar"] * {
+        color: #dde5f1;
     }
-    div[data-testid="stMetric"] label {
-        color: #8fb4ff;
+    [data-testid="stSidebar"] [data-baseweb="select"] > div,
+    [data-testid="stSidebar"] .stDateInput > div > div {
+        background: rgba(17, 24, 39, 0.92);
+        border-color: var(--line-strong);
+        border-radius: 14px;
     }
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 18px;
-        overflow: hidden;
+    [data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
+        background: rgba(124, 92, 255, 0.18);
+        border: 1px solid rgba(124, 92, 255, 0.30);
+        color: #f4f0ff;
+    }
+    .hero-shell {
+        background: linear-gradient(180deg, rgba(14, 19, 33, 0.96) 0%, rgba(16, 24, 40, 0.96) 100%);
+        border: 1px solid var(--line);
+        border-radius: 30px;
+        padding: 1.35rem 1.45rem 1.15rem 1.45rem;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 28px 70px rgba(2, 6, 23, 0.26);
+    }
+    .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1.5rem;
     }
     .hero-title {
-        font-size: 2rem;
+        font-size: 2.05rem;
         font-weight: 800;
-        letter-spacing: -0.02em;
-        margin-bottom: 0.2rem;
+        letter-spacing: -0.03em;
+        margin-bottom: 0.25rem;
     }
     .hero-subtitle {
-        color: #9db2ce;
+        color: var(--text-soft);
         font-size: 0.98rem;
+        line-height: 1.6;
+        max-width: 780px;
+    }
+    .hero-status {
+        min-width: 230px;
+        background: linear-gradient(180deg, rgba(124, 92, 255, 0.20) 0%, rgba(124, 92, 255, 0.10) 100%);
+        border: 1px solid rgba(124, 92, 255, 0.22);
+        border-radius: 20px;
+        padding: 0.95rem 1rem;
+    }
+    .hero-status-label {
+        color: #c5bcff;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.35rem;
+    }
+    .hero-status-value {
+        color: white;
+        font-weight: 800;
+        font-size: 1.4rem;
+        letter-spacing: -0.03em;
+    }
+    .hero-status-sub {
+        color: #c9d3e5;
+        font-size: 0.8rem;
+        margin-top: 0.2rem;
+    }
+    .hero-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 1rem;
     }
     .badge {
-        display: inline-block;
-        margin-top: 0.7rem;
-        margin-right: 0.45rem;
-        padding: 0.35rem 0.7rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.55rem 0.82rem;
         border-radius: 999px;
-        background: rgba(59, 130, 246, 0.14);
-        border: 1px solid rgba(96, 165, 250, 0.28);
-        color: #dbeafe;
+        background: rgba(23, 32, 53, 0.95);
+        border: 1px solid rgba(148, 163, 184, 0.15);
+        color: #dee6f3;
         font-size: 0.82rem;
+    }
+    .section-title {
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin: 1.4rem 0 0.85rem 0;
+        color: var(--text-main);
+    }
+    .section-caption {
+        color: var(--text-dim);
+        margin-top: -0.15rem;
+        margin-bottom: 0.9rem;
+    }
+    div[data-testid="stMetric"] {
+        background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 16px 18px 14px 18px;
+        box-shadow: 0 14px 36px rgba(2, 6, 23, 0.18);
+    }
+    div[data-testid="stMetric"] label {
+        color: #98a4bc;
+        font-weight: 600;
+        font-size: 0.82rem;
+        letter-spacing: 0.01em;
+    }
+    div[data-testid="stMetricValue"] {
+        color: white;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+    .metric-note {
+        color: var(--text-dim);
+        margin: 0.55rem 0 1rem 0;
+        font-size: 0.88rem;
+    }
+    .metric-grid-gap {
+        margin-top: 0.55rem;
+    }
+    .chart-card {
+        background: linear-gradient(180deg, rgba(14, 19, 33, 0.98) 0%, rgba(18, 26, 42, 0.98) 100%);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 0.8rem 0.9rem 0.3rem 0.9rem;
+        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+        margin-bottom: 0.9rem;
+    }
+    div[data-testid="stDataFrame"] {
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.14);
+    }
+    h2, h3 {
+        color: var(--text-main);
+        letter-spacing: -0.02em;
+    }
+    .stCaption {
+        color: var(--text-dim);
+    }
+    .stButton button {
+        background: linear-gradient(180deg, #7c5cff 0%, #5d3df5 100%);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-weight: 700;
     }
 </style>
 """
@@ -90,11 +218,11 @@ TABLE_FALLBACK_COLUMNS = {
 }
 
 CHART_COLORS = {
-    "cost": "#60a5fa",
-    "payment_amount": "#f59e0b",
-    "inflow_count": "#22c55e",
-    "payment_count": "#f97316",
-    "roas": "#38bdf8",
+    "cost": "#8aa4ff",
+    "payment_amount": "#ffb347",
+    "inflow_count": "#46d39a",
+    "payment_count": "#ff7a59",
+    "roas": "#8f7dff",
 }
 
 DISPLAY_NAMES = {
@@ -137,8 +265,6 @@ def main() -> None:
     render_kpi_section(filtered_df)
     render_chart_section(filtered_df)
     render_tables(filtered_df)
-
-    st.markdown("---")
     render_performance_totals(filtered_performance_df)
 
 
@@ -162,15 +288,25 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
 
     st.markdown(
         f"""
-        <div class="panel">
-            <div class="hero-title">바이럴 운영 관리사 대시보드</div>
-            <div class="hero-subtitle">
-                공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 Streamlit 대시보드
+        <div class="hero-shell">
+            <div class="hero-top">
+                <div>
+                    <div class="hero-title">바이럴 운영 관리사 대시보드</div>
+                    <div class="hero-subtitle">
+                        공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 운영형 Streamlit 대시보드
+                    </div>
+                </div>
+                <div class="hero-status">
+                    <div class="hero-status-label">Match Coverage</div>
+                    <div class="hero-status-value">{coverage:.1f}%</div>
+                    <div class="hero-status-sub">{matched_count}/{total_count}개 매칭</div>
+                </div>
             </div>
-            <div class="badge">원본 시트: {source_url}</div>
-            <div class="badge">매칭률: {coverage:.1f}% ({matched_count}/{total_count})</div>
-            <div class="badge">집계 규칙: {collection_rule or "미기재"}</div>
-            <div class="badge">최신 수집일: {latest_collection_date or "미기재"}</div>
+            <div class="hero-badges">
+                <div class="badge">원본 시트: {source_url}</div>
+                <div class="badge">집계 규칙: {collection_rule or "미기재"}</div>
+                <div class="badge">최신 수집일: {latest_collection_date or "미기재"}</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -195,11 +331,11 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
         max_value=max_date,
     )
 
-    platforms = sorted(values_without_blank(df["platform"]))
-    workers = sorted(values_without_blank(df["worker"]))
-    products = sorted(values_without_blank(df["product_name"]))
-    managers = sorted(values_without_blank(df["manager"]))
-    transfer_options = sorted(values_without_blank(df["transfer_status"]))
+    platforms = normalized_option_values(df["platform"])
+    workers = normalized_option_values(df["worker"])
+    products = normalized_option_values(df["product_name"])
+    managers = normalized_option_values(df["manager"])
+    transfer_options = normalized_option_values(df["transfer_status"])
 
     selected_platforms = st.sidebar.multiselect("플랫폼", platforms, default=platforms)
     selected_workers = st.sidebar.multiselect("작업자", workers)
@@ -232,22 +368,25 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def render_kpi_section(df: pd.DataFrame) -> None:
-    st.subheader("핵심 KPI")
+    st.markdown('<div class="section-title">핵심 KPI</div>', unsafe_allow_html=True)
     primary_metrics, secondary_metrics = build_kpis(df)
 
-    first_primary_row = st.columns(2)
-    for column, metric in zip(first_primary_row, primary_metrics[:2], strict=False):
-        with column:
-            st.metric(metric["label"], metric["value"])
+    primary_left, primary_right = st.columns(2)
+    with primary_left:
+        st.metric(primary_metrics[0]["label"], primary_metrics[0]["value"])
+    with primary_right:
+        st.metric(primary_metrics[1]["label"], primary_metrics[1]["value"])
 
-    second_primary_row = st.columns(2)
-    for column, metric in zip(second_primary_row, primary_metrics[2:], strict=False):
-        with column:
-            st.metric(metric["label"], metric["value"])
+    secondary_left, secondary_right = st.columns(2)
+    with secondary_left:
+        st.metric(primary_metrics[2]["label"], primary_metrics[2]["value"])
+    with secondary_right:
+        st.metric(primary_metrics[3]["label"], primary_metrics[3]["value"])
 
-    st.caption("운영 판단에 바로 쓰는 핵심 지표를 먼저 배치했습니다.")
-    secondary_columns = st.columns(len(secondary_metrics))
-    for column, metric in zip(secondary_columns, secondary_metrics, strict=False):
+    st.markdown('<div class="metric-note">운영 판단에 바로 쓰는 핵심 지표를 먼저 배치했습니다.</div>', unsafe_allow_html=True)
+
+    compact_columns = st.columns(4)
+    for column, metric in zip(compact_columns, secondary_metrics, strict=False):
         with column:
             st.metric(metric["label"], metric["value"])
 
@@ -275,7 +414,8 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
 
 
 def render_chart_section(df: pd.DataFrame) -> None:
-    st.subheader("성과 흐름과 효율")
+    st.markdown('<div class="section-title">성과 흐름과 효율</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-caption">핵심 비교는 크게, 보조 비교는 압축해서 배치했습니다.</div>', unsafe_allow_html=True)
 
     platform_perf = summarize_by_platform(df)
     daily_trend = build_time_series(df, "D")
@@ -284,21 +424,35 @@ def render_chart_section(df: pd.DataFrame) -> None:
 
     top_left, top_right = st.columns(2)
     with top_left:
-        st.plotly_chart(build_platform_performance_chart(platform_perf), use_container_width=True)
+        with st.container(border=False):
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.plotly_chart(build_platform_performance_chart(platform_perf), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
     with top_right:
-        st.plotly_chart(build_daily_trend_chart(daily_trend), use_container_width=True)
+        with st.container(border=False):
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.plotly_chart(build_daily_trend_chart(daily_trend), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
     middle_left, middle_right = st.columns(2)
     with middle_left:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.plotly_chart(build_monthly_trend_chart(monthly_trend), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     with middle_right:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.plotly_chart(build_platform_roas_scatter(platform_perf), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     bottom_left, bottom_right = st.columns(2)
     with bottom_left:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.plotly_chart(build_worker_performance_chart(worker_perf), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     with bottom_right:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         st.plotly_chart(build_payment_share_donut(platform_perf), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def summarize_by_platform(df: pd.DataFrame) -> pd.DataFrame:
@@ -342,12 +496,11 @@ def build_time_series(df: pd.DataFrame, frequency: str) -> pd.DataFrame:
     else:
         dated["period"] = dated["date"].dt.to_period(frequency).dt.to_timestamp()
 
-    grouped = (
+    return (
         dated.groupby("period", as_index=False)[["inflow_count", "payment_count", "cost", "payment_amount"]]
         .sum()
         .sort_values("period")
     )
-    return grouped
 
 
 def build_platform_performance_chart(df: pd.DataFrame):
@@ -521,8 +674,9 @@ def build_payment_share_donut(df: pd.DataFrame):
         chart_df,
         names="platform",
         values="payment_amount",
-        hole=0.58,
+        hole=0.60,
         title="플랫폼별 결제금액 비중",
+        color_discrete_sequence=["#8f7dff", "#ffb347", "#46d39a", "#ff7a59", "#8aa4ff", "#f472b6"],
     )
     fig.update_traces(
         textinfo="percent+label",
@@ -533,7 +687,9 @@ def build_payment_share_donut(df: pd.DataFrame):
 
 
 def render_tables(df: pd.DataFrame) -> None:
-    st.subheader("작업 상세 리스트")
+    st.markdown('<div class="section-title">작업 리스트</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-caption">실행 결과와 미매칭 사유를 한 번에 확인할 수 있게 정리했습니다.</div>', unsafe_allow_html=True)
+
     detail_columns = [
         "date",
         "platform",
@@ -575,16 +731,13 @@ def render_tables(df: pd.DataFrame) -> None:
     for currency_column in ["비용", "결제금액"]:
         if currency_column in detail_df.columns:
             detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
+
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
-    unmatched_df = df.loc[df["match_status"] == "미매칭", [
-        "date",
-        "platform",
-        "worker",
-        "product_name",
-        "keyword",
-        "unmatched_reason",
-    ]].copy()
+    unmatched_df = df.loc[
+        df["match_status"] == "미매칭",
+        ["date", "platform", "worker", "product_name", "keyword", "unmatched_reason"],
+    ].copy()
     unmatched_df = unmatched_df.rename(
         columns={
             "date": "일자",
@@ -599,18 +752,18 @@ def render_tables(df: pd.DataFrame) -> None:
         unmatched_df["일자"] = pd.to_datetime(unmatched_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d")
         unmatched_df["일자"] = unmatched_df["일자"].fillna("")
 
-    st.subheader("매칭 실패 리스트")
+    st.markdown('<div class="section-title" style="font-size:1.2rem; margin-top:1.1rem;">매칭 실패 리스트</div>', unsafe_allow_html=True)
     st.dataframe(unmatched_df, use_container_width=True, hide_index=True)
 
 
 def render_performance_totals(performance_df: pd.DataFrame) -> None:
-    st.subheader("원본 효율 DB 전체 합계")
+    st.markdown('<div class="section-title">원본 효율 DB 전체 합계</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-caption">현재 필터에 걸린 매칭 행과 연결된 효율 DB 기준 합계입니다.</div>', unsafe_allow_html=True)
     kpis = build_performance_kpis(performance_df)
     columns = st.columns(len(kpis))
     for column, metric in zip(columns, kpis, strict=False):
         with column:
             st.metric(metric["label"], metric["value"])
-    st.caption("현재 필터에 걸린 매칭 행과 연결된 효율 DB 기준 합계입니다.")
 
 
 def build_performance_kpis(df: pd.DataFrame) -> list[dict[str, str]]:
@@ -642,7 +795,11 @@ def filter_performance_by_matched_rows(
     keys = set(
         matched_df.loc[matched_df["is_matched"].fillna(False)]
         .apply(
-            lambda row: build_match_key(row["matched_nt_source"] or row["match_nt_source"], row["match_nt_detail"], row["match_nt_keyword"]),
+            lambda row: build_match_key(
+                row["matched_nt_source"] or row["match_nt_source"],
+                row["match_nt_detail"],
+                row["match_nt_keyword"],
+            ),
             axis=1,
         )
         .tolist()
@@ -656,10 +813,6 @@ def filter_performance_by_matched_rows(
         axis=1,
     )
     return working.loc[working["match_key"].isin(keys)].copy()
-
-
-def values_without_blank(series: pd.Series) -> list[str]:
-    return [value for value in series.dropna().astype(str).tolist() if value.strip()]
 
 
 def format_currency(value: float) -> str:
@@ -688,15 +841,16 @@ def apply_count_yaxis(fig) -> None:
 
 def apply_common_layout(fig) -> None:
     fig.update_layout(
-        paper_bgcolor="rgba(15, 23, 42, 0.0)",
-        plot_bgcolor="rgba(15, 23, 42, 0.0)",
-        font=dict(color="#e5eefc"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0.02)",
+        font=dict(color="#dde5f1"),
         legend_title_text="",
-        margin=dict(l=20, r=20, t=60, b=20),
-        hoverlabel=dict(bgcolor="#0f172a", font_color="#e5eefc"),
+        margin=dict(l=18, r=18, t=60, b=18),
+        hoverlabel=dict(bgcolor="#111827", font_color="#f8fafc"),
+        title_font=dict(size=18, color="#f8fafc"),
     )
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(gridcolor="rgba(148, 163, 184, 0.12)")
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(gridcolor="rgba(148, 163, 184, 0.18)", zeroline=False)
 
 
 def empty_figure(title: str):
@@ -712,12 +866,27 @@ def empty_figure(title: str):
                 y=0.5,
                 xref="paper",
                 yref="paper",
-                font=dict(color="#9db2ce", size=14),
+                font=dict(color="#94a3b8", size=14),
             )
         ],
     )
     apply_common_layout(fig)
     return fig
+
+
+def normalize_option_text(value: str) -> str:
+    text = unicodedata.normalize("NFKC", value)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def normalized_option_values(series: pd.Series) -> list[str]:
+    unique_values: dict[str, str] = {}
+    for raw_value in series.dropna().astype(str).tolist():
+        normalized = normalize_option_text(raw_value)
+        if not normalized:
+            continue
+        unique_values.setdefault(normalized.casefold(), normalized)
+    return sorted(unique_values.values())
 
 
 if __name__ == "__main__":
