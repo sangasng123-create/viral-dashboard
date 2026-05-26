@@ -20,14 +20,22 @@ DARK_CSS = """
     .stApp {
         background:
             radial-gradient(circle at top left, rgba(59,130,246,0.18), transparent 28%),
-            radial-gradient(circle at top right, rgba(16,185,129,0.12), transparent 24%),
+            radial-gradient(circle at top right, rgba(16,185,129,0.10), transparent 22%),
             linear-gradient(180deg, #0a0f1f 0%, #111827 52%, #0b1220 100%);
         color: #e5eefc;
     }
     .block-container {
         padding-top: 1.4rem;
         padding-bottom: 2rem;
-        max-width: 1500px;
+        max-width: 1480px;
+    }
+    .panel {
+        background: rgba(15, 23, 42, 0.76);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 22px;
+        padding: 1.2rem 1.3rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 16px 38px rgba(2, 6, 23, 0.22);
     }
     div[data-testid="stMetric"] {
         background: rgba(15, 23, 42, 0.82);
@@ -43,14 +51,6 @@ DARK_CSS = """
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 18px;
         overflow: hidden;
-    }
-    .panel {
-        background: rgba(15, 23, 42, 0.74);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        border-radius: 22px;
-        padding: 1.2rem 1.3rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 16px 38px rgba(2, 6, 23, 0.22);
     }
     .hero-title {
         font-size: 2rem;
@@ -72,9 +72,6 @@ DARK_CSS = """
         border: 1px solid rgba(96, 165, 250, 0.28);
         color: #dbeafe;
         font-size: 0.82rem;
-    }
-    h2, h3 {
-        letter-spacing: -0.02em;
     }
 </style>
 """
@@ -98,7 +95,6 @@ CHART_COLORS = {
     "inflow_count": "#22c55e",
     "payment_count": "#f97316",
     "roas": "#38bdf8",
-    "match_rate": "#a78bfa",
 }
 
 DISPLAY_NAMES = {
@@ -107,7 +103,6 @@ DISPLAY_NAMES = {
     "inflow_count": "유입수",
     "payment_count": "결제수",
     "roas": "ROAS",
-    "match_rate": "매칭률",
 }
 
 
@@ -119,8 +114,7 @@ def get_dashboard_data() -> dict[str, pd.DataFrame]:
 def main() -> None:
     st.markdown(DARK_CSS, unsafe_allow_html=True)
 
-    refresh_clicked = st.sidebar.button("원본 다시 불러오기", use_container_width=True)
-    if refresh_clicked:
+    if st.sidebar.button("원본 다시 불러오기", use_container_width=True):
         get_dashboard_data.clear()
         st.session_state.pop("dashboard_data", None)
 
@@ -140,13 +134,12 @@ def main() -> None:
     filtered_df = render_filters(matched_df)
     filtered_performance_df = filter_performance_by_matched_rows(filtered_df, performance_df)
 
-    render_kpis("매칭 기준 KPI", build_matched_kpis(filtered_df))
-    render_charts(filtered_df)
+    render_kpi_section(filtered_df)
+    render_chart_section(filtered_df)
     render_tables(filtered_df)
 
     st.markdown("---")
-    render_kpis("원본 효율 DB 전체 합계", build_performance_kpis(filtered_performance_df))
-    st.caption("현재 필터에 걸린 매칭 행과 연결된 효율 DB 기준 합계입니다.")
+    render_performance_totals(filtered_performance_df)
 
 
 def ensure_table_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -170,13 +163,13 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
     st.markdown(
         f"""
         <div class="panel">
-            <div class="hero-title">바이럴 운영 관리자 대시보드</div>
+            <div class="hero-title">바이럴 운영 관리사 대시보드</div>
             <div class="hero-subtitle">
                 공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 Streamlit 대시보드
             </div>
             <div class="badge">원본 시트: {source_url}</div>
             <div class="badge">매칭률: {coverage:.1f}% ({matched_count}/{total_count})</div>
-            <div class="badge">집계 규칙: {collection_rule or "미설정"}</div>
+            <div class="badge">집계 규칙: {collection_rule or "미기재"}</div>
             <div class="badge">최신 수집일: {latest_collection_date or "미기재"}</div>
         </div>
         """,
@@ -202,19 +195,20 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
         max_value=max_date,
     )
 
-    platforms = sorted(x for x in df["platform"].dropna().unique().tolist() if x)
-    workers = sorted(x for x in df["worker"].dropna().unique().tolist() if x)
-    products = sorted(x for x in df["product_name"].dropna().unique().tolist() if x)
-    managers = sorted(x for x in df["manager"].dropna().unique().tolist() if x)
-    transfer_options = sorted(x for x in df["transfer_status"].dropna().unique().tolist() if x)
+    platforms = sorted(values_without_blank(df["platform"]))
+    workers = sorted(values_without_blank(df["worker"]))
+    products = sorted(values_without_blank(df["product_name"]))
+    managers = sorted(values_without_blank(df["manager"]))
+    transfer_options = sorted(values_without_blank(df["transfer_status"]))
 
     selected_platforms = st.sidebar.multiselect("플랫폼", platforms, default=platforms)
     selected_workers = st.sidebar.multiselect("작업자", workers)
     selected_products = st.sidebar.multiselect("상품명", products)
     selected_managers = st.sidebar.multiselect("담당자", managers)
-    selected_transfers = st.sidebar.multiselect("이관 여부", transfer_options, default=transfer_options)
+    selected_transfers = st.sidebar.multiselect("이체 여부", transfer_options, default=transfer_options)
 
     filtered = df.copy()
+
     if len(date_range) == 2:
         start_date, end_date = map(pd.Timestamp, date_range)
         end_dt = end_date + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
@@ -234,391 +228,312 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     if selected_transfers:
         filtered = filtered[filtered["transfer_status"].isin(selected_transfers)]
 
-    st.sidebar.caption(f"필터 결과: {len(filtered):,}건")
-    return filtered
+    return filtered.sort_values(["date", "platform", "worker"], ascending=[False, True, True])
 
 
-def build_matched_kpis(df: pd.DataFrame) -> dict[str, float]:
-    total_cost = float(df["cost"].sum())
-    payment_amount = float(df["payment_amount"].sum())
-    roas = payment_amount / total_cost * 100 if total_cost else 0.0
+def render_kpi_section(df: pd.DataFrame) -> None:
+    st.subheader("핵심 KPI")
+    primary_metrics, secondary_metrics = build_kpis(df)
 
-    return {
-        "총 작업 수": float(len(df)),
-        "총 비용": total_cost,
-        "고객수": float(df["customer_count"].sum()),
-        "유입수": float(df["inflow_count"].sum()),
-        "클릭수": float(df["page_count"].sum()),
-        "결제수": float(df["payment_count"].sum()),
-        "결제금액": payment_amount,
-        "ROAS": roas,
-    }
+    first_primary_row = st.columns(2)
+    for column, metric in zip(first_primary_row, primary_metrics[:2], strict=False):
+        with column:
+            st.metric(metric["label"], metric["value"])
 
+    second_primary_row = st.columns(2)
+    for column, metric in zip(second_primary_row, primary_metrics[2:], strict=False):
+        with column:
+            st.metric(metric["label"], metric["value"])
 
-def build_performance_kpis(df: pd.DataFrame) -> dict[str, float]:
-    return {
-        "효율DB 고객수": float(df["customer_count"].sum()),
-        "효율DB 유입수": float(df["inflow_count"].sum()),
-        "효율DB 페이지수": float(df["page_count"].sum()),
-        "효율DB 결제수": float(df["payment_count"].sum()),
-        "효율DB 결제금액": float(df["payment_amount"].sum()),
-        "효율DB 기여결제수": float(df["payment_count_attributed"].sum()),
-        "효율DB 기여결제금액": float(df["payment_amount_attributed"].sum()),
-    }
+    st.caption("운영 판단에 바로 쓰는 핵심 지표를 먼저 배치했습니다.")
+    secondary_columns = st.columns(len(secondary_metrics))
+    for column, metric in zip(secondary_columns, secondary_metrics, strict=False):
+        with column:
+            st.metric(metric["label"], metric["value"])
 
 
-def filter_performance_by_matched_rows(
-    filtered_matched_df: pd.DataFrame,
-    performance_df: pd.DataFrame,
-) -> pd.DataFrame:
-    if filtered_matched_df.empty or performance_df.empty:
-        return performance_df.iloc[0:0].copy()
+def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    total_cost = float(df["cost"].fillna(0).sum())
+    total_payment_amount = float(df["payment_amount"].fillna(0).sum())
+    total_payment_count = float(df["payment_count"].fillna(0).sum())
+    roas = (total_payment_amount / total_cost * 100) if total_cost else 0
 
-    matched_keys = (
-        filtered_matched_df.loc[filtered_matched_df["is_matched"].fillna(False), "match_key"]
-        .astype(str)
-        .str.strip()
-    )
-    matched_keys = {key for key in matched_keys if key}
-    if not matched_keys:
-        return performance_df.iloc[0:0].copy()
+    primary = [
+        {"label": "총 비용", "value": format_currency(total_cost)},
+        {"label": "결제금액", "value": format_currency(total_payment_amount)},
+        {"label": "ROAS", "value": format_percent(roas)},
+        {"label": "결제수", "value": format_number(total_payment_count)},
+    ]
 
-    working_df = performance_df.copy()
-    working_df["match_key"] = working_df.apply(
-        lambda row: build_match_key(row["nt_source"], row["nt_detail"], row["nt_keyword"]),
-        axis=1,
-    )
-    filtered = working_df[working_df["match_key"].isin(matched_keys)].copy()
-    return filtered.drop(columns=["match_key"], errors="ignore")
+    secondary = [
+        {"label": "총 작업 수", "value": format_number(len(df))},
+        {"label": "고객수", "value": format_number(df["customer_count"].fillna(0).sum())},
+        {"label": "유입수", "value": format_number(df["inflow_count"].fillna(0).sum())},
+        {"label": "클릭수", "value": format_number(df["page_count"].fillna(0).sum())},
+    ]
+    return primary, secondary
 
 
-def render_kpis(title: str, metrics: dict[str, float]) -> None:
-    st.markdown(f"### {title}")
-    columns = st.columns(4)
-    count_tokens = ("작업 수", "고객수", "유입수", "페이지수", "결제수")
+def render_chart_section(df: pd.DataFrame) -> None:
+    st.subheader("성과 흐름과 효율")
 
-    for idx, (label, value) in enumerate(metrics.items()):
-        with columns[idx % 4]:
-            if any(token in label for token in count_tokens):
-                st.metric(label, f"{value:,.0f}")
-            elif "ROAS" in label:
-                st.metric(label, f"{value:,.1f}%")
-            else:
-                st.metric(label, f"{value:,.0f}")
-
-
-def render_charts(df: pd.DataFrame) -> None:
-    summary_by_platform = summarize_chart_metrics(df, "platform")
-    summary_by_worker = summarize_chart_metrics(df, "worker")
+    platform_perf = summarize_by_platform(df)
     daily_trend = build_time_series(df, "D")
-    weekly_trend = build_time_series(df, "W-MON")
     monthly_trend = build_time_series(df, "M")
-    revenue_share_df = summarize_revenue_share(summary_by_platform)
+    worker_perf = summarize_by_worker(df, limit=7)
 
-    top_left, top_right = st.columns((1.08, 0.92))
-
+    top_left, top_right = st.columns(2)
     with top_left:
-        st.markdown("### 플랫폼별 비용 vs 결제금액")
-        if summary_by_platform.empty:
-            st.info("표시할 플랫폼 비교 데이터가 없습니다.")
-        else:
-            chart_df = (
-                summary_by_platform.sort_values("cost", ascending=False)
-                .melt(
-                    id_vars="platform",
-                    value_vars=["cost", "payment_amount"],
-                    var_name="metric",
-                    value_name="amount",
-                )
-            )
-            chart_df["metric_label"] = chart_df["metric"].map(DISPLAY_NAMES)
-            fig = px.bar(
-                chart_df,
-                x="platform",
-                y="amount",
-                color="metric_label",
-                barmode="group",
-                template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
-                    DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
-                },
-                labels={"platform": "플랫폼", "amount": "금액", "metric_label": "지표"},
-            )
-            fig.update_xaxes(categoryorder="total descending")
-            apply_chart_layout(fig, 360)
-            st.plotly_chart(fig, use_container_width=True)
-
+        st.plotly_chart(build_platform_performance_chart(platform_perf), use_container_width=True)
     with top_right:
-        st.markdown("### 일별 유입수 vs 결제수")
-        if daily_trend.empty:
-            st.info("표시할 일별 추이 데이터가 없습니다.")
-        else:
-            daily_chart = daily_trend.rename(
-                columns={
-                    "inflow_count": DISPLAY_NAMES["inflow_count"],
-                    "payment_count": DISPLAY_NAMES["payment_count"],
-                }
-            )
-            fig = px.line(
-                daily_chart,
-                x="period",
-                y=[DISPLAY_NAMES["inflow_count"], DISPLAY_NAMES["payment_count"]],
-                template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["inflow_count"]: CHART_COLORS["inflow_count"],
-                    DISPLAY_NAMES["payment_count"]: CHART_COLORS["payment_count"],
-                },
-                labels={"period": "일자", "value": "수치", "variable": "지표"},
-                markers=True,
-            )
-            apply_chart_layout(fig, 360)
-            st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(build_daily_trend_chart(daily_trend), use_container_width=True)
 
     middle_left, middle_right = st.columns(2)
-
     with middle_left:
-        st.markdown("### 주별 유입수 vs 결제수")
-        if weekly_trend.empty:
-            st.info("표시할 주별 추이 데이터가 없습니다.")
-        else:
-            weekly_chart = weekly_trend.rename(
-                columns={
-                    "inflow_count": DISPLAY_NAMES["inflow_count"],
-                    "payment_count": DISPLAY_NAMES["payment_count"],
-                }
-            )
-            fig = px.bar(
-                weekly_chart,
-                x="period_label",
-                y=[DISPLAY_NAMES["inflow_count"], DISPLAY_NAMES["payment_count"]],
-                barmode="group",
-                template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["inflow_count"]: CHART_COLORS["inflow_count"],
-                    DISPLAY_NAMES["payment_count"]: CHART_COLORS["payment_count"],
-                },
-                labels={"period_label": "주차", "value": "수치", "variable": "지표"},
-            )
-            apply_chart_layout(fig, 340)
-            st.plotly_chart(fig, use_container_width=True)
-
+        st.plotly_chart(build_monthly_trend_chart(monthly_trend), use_container_width=True)
     with middle_right:
-        st.markdown("### 월별 비용 vs 결제금액")
-        if monthly_trend.empty:
-            st.info("표시할 월별 추이 데이터가 없습니다.")
-        else:
-            monthly_chart = monthly_trend.rename(
-                columns={
-                    "cost": DISPLAY_NAMES["cost"],
-                    "payment_amount": DISPLAY_NAMES["payment_amount"],
-                }
-            )
-            fig = px.bar(
-                monthly_chart,
-                x="period_label",
-                y=[DISPLAY_NAMES["cost"], DISPLAY_NAMES["payment_amount"]],
-                barmode="group",
-                template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
-                    DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
-                },
-                labels={"period_label": "월", "value": "금액", "variable": "지표"},
-            )
-            apply_chart_layout(fig, 340)
-            st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(build_platform_roas_scatter(platform_perf), use_container_width=True)
 
     bottom_left, bottom_right = st.columns(2)
-
     with bottom_left:
-        st.markdown("### 플랫폼별 유입수 vs ROAS")
-        if summary_by_platform.empty:
-            st.info("표시할 플랫폼 효율 데이터가 없습니다.")
-        else:
-            platform_efficiency = summary_by_platform.sort_values(
-                ["payment_amount", "roas"],
-                ascending=[False, False],
-            )
-            fig = px.scatter(
-                platform_efficiency,
-                x="inflow_count",
-                y="roas",
-                size="payment_amount",
-                color="platform",
-                template="plotly_dark",
-                labels={"inflow_count": "유입수", "roas": "ROAS (%)", "platform": "플랫폼"},
-                hover_data={"payment_amount": ":,.0f", "cost": ":,.0f", "payment_count": ":,.0f"},
-            )
-            fig.update_yaxes(ticksuffix="%")
-            fig.update_traces(marker=dict(line=dict(width=1, color="rgba(255,255,255,0.35)")))
-            apply_chart_layout(fig, 340)
-            st.plotly_chart(fig, use_container_width=True)
-
+        st.plotly_chart(build_worker_performance_chart(worker_perf), use_container_width=True)
     with bottom_right:
-        st.markdown("### 작업자별 비용 vs 결제금액")
-        if summary_by_worker.empty:
-            st.info("표시할 작업자 데이터가 없습니다.")
-        else:
-            worker_chart = (
-                summary_by_worker.sort_values("cost", ascending=False)
-                .head(10)
-                .melt(
-                    id_vars="worker",
-                    value_vars=["cost", "payment_amount"],
-                    var_name="metric",
-                    value_name="amount",
-                )
-            )
-            worker_chart["metric_label"] = worker_chart["metric"].map(DISPLAY_NAMES)
-            fig = px.bar(
-                worker_chart,
-                x="worker",
-                y="amount",
-                color="metric_label",
-                barmode="group",
-                template="plotly_dark",
-                color_discrete_map={
-                    DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
-                    DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
-                },
-                labels={"worker": "작업자", "amount": "금액", "metric_label": "지표"},
-            )
-            apply_chart_layout(fig, 340)
-            st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("### 플랫폼별 결제금액 비중")
-    if revenue_share_df.empty:
-        st.info("표시할 결제금액 비중 데이터가 없습니다.")
-    else:
-        fig = px.pie(
-            revenue_share_df,
-            names="platform",
-            values="payment_amount",
-            template="plotly_dark",
-            hole=0.52,
-            color_discrete_sequence=["#38bdf8", "#34d399", "#f59e0b", "#f87171", "#f472b6"],
-        )
-        apply_chart_layout(fig, 360)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(build_payment_share_donut(platform_perf), use_container_width=True)
 
 
-def apply_chart_layout(fig, height: int) -> None:
-    fig.update_layout(
-        height=height,
-        margin=dict(l=12, r=12, t=12, b=12),
-        legend_title_text="",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(15,23,42,0.25)",
-    )
-
-
-def summarize_chart_metrics(df: pd.DataFrame, group_column: str) -> pd.DataFrame:
-    if df.empty or group_column not in df.columns:
-        return pd.DataFrame()
-
-    working_df = df.copy()
-    working_df[group_column] = working_df[group_column].fillna("").astype(str).str.strip()
-    working_df = working_df[working_df[group_column].ne("")].copy()
-    if working_df.empty:
-        return pd.DataFrame()
-
-    summary = (
-        working_df.groupby(group_column, dropna=False, as_index=False)
-        .agg(
-            rows=("row_id", "count"),
-            cost=("cost", "sum"),
-            inflow_count=("inflow_count", "sum"),
-            payment_count=("payment_count", "sum"),
-            payment_amount=("payment_amount", "sum"),
-            matched_rows=("is_matched", "sum"),
-        )
-    )
-    summary["roas"] = summary.apply(
-        lambda row: row["payment_amount"] / row["cost"] * 100 if row["cost"] else 0,
-        axis=1,
-    )
-    summary["match_rate"] = summary.apply(
-        lambda row: row["matched_rows"] / row["rows"] * 100 if row["rows"] else 0,
-        axis=1,
-    )
-    return summary
-
-
-def summarize_revenue_share(summary_by_platform: pd.DataFrame) -> pd.DataFrame:
-    if summary_by_platform.empty:
-        return pd.DataFrame(columns=["platform", "payment_amount"])
-
-    revenue_share_df = summary_by_platform[["platform", "payment_amount"]].copy()
-    revenue_share_df = revenue_share_df[revenue_share_df["payment_amount"] > 0].copy()
-    return revenue_share_df.sort_values("payment_amount", ascending=False).reset_index(drop=True)
-
-
-def build_time_series(df: pd.DataFrame, freq: str) -> pd.DataFrame:
+def summarize_by_platform(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=["platform", "cost", "payment_amount", "inflow_count", "payment_count", "roas"])
 
-    dated_df = df.dropna(subset=["date"]).copy()
-    if dated_df.empty:
-        return pd.DataFrame()
+    grouped = (
+        df.groupby("platform", dropna=False, as_index=False)[["cost", "payment_amount", "inflow_count", "payment_count"]]
+        .sum()
+        .fillna(0)
+    )
+    grouped["platform"] = grouped["platform"].replace("", "미기재")
+    grouped["roas"] = grouped.apply(
+        lambda row: (row["payment_amount"] / row["cost"] * 100) if row["cost"] else 0,
+        axis=1,
+    )
+    return grouped.sort_values("payment_amount", ascending=False)
 
-    if freq == "D":
-        dated_df["period"] = dated_df["date"].dt.normalize()
-    elif freq == "M":
-        dated_df["period"] = dated_df["date"].dt.to_period("M").dt.to_timestamp()
+
+def summarize_by_worker(df: pd.DataFrame, limit: int = 7) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(columns=["worker", "cost", "payment_amount"])
+
+    grouped = (
+        df.groupby("worker", dropna=False, as_index=False)[["cost", "payment_amount"]]
+        .sum()
+        .fillna(0)
+    )
+    grouped["worker"] = grouped["worker"].replace("", "미기재")
+    grouped = grouped.sort_values("payment_amount", ascending=False).head(limit)
+    return grouped.sort_values("payment_amount", ascending=True)
+
+
+def build_time_series(df: pd.DataFrame, frequency: str) -> pd.DataFrame:
+    dated = df.loc[df["date"].notna()].copy()
+    if dated.empty:
+        return pd.DataFrame(columns=["period", "inflow_count", "payment_count", "cost", "payment_amount"])
+
+    if frequency == "D":
+        dated["period"] = dated["date"].dt.normalize()
     else:
-        dated_df["period"] = dated_df["date"].dt.to_period(freq).dt.to_timestamp()
+        dated["period"] = dated["date"].dt.to_period(frequency).dt.to_timestamp()
 
-    summary = (
-        dated_df.groupby("period", as_index=False)
-        .agg(
-            cost=("cost", "sum"),
-            inflow_count=("inflow_count", "sum"),
-            payment_count=("payment_count", "sum"),
-            payment_amount=("payment_amount", "sum"),
-        )
+    grouped = (
+        dated.groupby("period", as_index=False)[["inflow_count", "payment_count", "cost", "payment_amount"]]
+        .sum()
         .sort_values("period")
-        .reset_index(drop=True)
     )
-
-    if freq == "D":
-        summary["period_label"] = summary["period"].dt.strftime("%Y-%m-%d")
-    elif freq == "M":
-        summary["period_label"] = summary["period"].dt.strftime("%Y-%m")
-    else:
-        period_end = summary["period"] + pd.Timedelta(days=6)
-        summary["period_label"] = (
-            summary["period"].dt.strftime("%m/%d") + " - " + period_end.dt.strftime("%m/%d")
-        )
-
-    return summary
+    return grouped
 
 
-def summarize_transfer_status(df: pd.DataFrame) -> pd.DataFrame:
-    if df.empty or "transfer_status" not in df.columns:
-        return pd.DataFrame(columns=["transfer_status", "rows"])
+def build_platform_performance_chart(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("플랫폼별 투자 대비 매출")
 
-    transfer_df = df.copy()
-    transfer_df["transfer_status"] = transfer_df["transfer_status"].fillna("").astype(str).str.strip()
-    transfer_df["transfer_status"] = transfer_df["transfer_status"].replace("", "미기재")
-    return (
-        transfer_df.groupby("transfer_status", as_index=False)
-        .agg(rows=("row_id", "count"))
-        .sort_values("rows", ascending=False)
-        .reset_index(drop=True)
+    melted = df.melt(
+        id_vars="platform",
+        value_vars=["cost", "payment_amount"],
+        var_name="metric",
+        value_name="value",
     )
+    melted["metric_label"] = melted["metric"].map(DISPLAY_NAMES)
+
+    fig = px.bar(
+        melted,
+        x="platform",
+        y="value",
+        color="metric_label",
+        barmode="group",
+        color_discrete_map={
+            DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
+            DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
+        },
+        title="플랫폼별 투자 대비 매출",
+    )
+    fig.update_traces(
+        hovertemplate="플랫폼=%{x}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>"
+    )
+    apply_currency_yaxis(fig)
+    apply_common_layout(fig)
+    return fig
+
+
+def build_daily_trend_chart(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("일별 유입과 결제 흐름")
+
+    melted = df.melt(
+        id_vars="period",
+        value_vars=["inflow_count", "payment_count"],
+        var_name="metric",
+        value_name="value",
+    )
+    melted["metric_label"] = melted["metric"].map(DISPLAY_NAMES)
+
+    fig = px.line(
+        melted,
+        x="period",
+        y="value",
+        color="metric_label",
+        markers=True,
+        color_discrete_map={
+            DISPLAY_NAMES["inflow_count"]: CHART_COLORS["inflow_count"],
+            DISPLAY_NAMES["payment_count"]: CHART_COLORS["payment_count"],
+        },
+        title="일별 유입과 결제 흐름",
+    )
+    fig.update_traces(
+        hovertemplate="일자=%{x|%Y-%m-%d}<br>지표=%{fullData.name}<br>수치=%{y:,.0f}<extra></extra>"
+    )
+    apply_count_yaxis(fig)
+    apply_common_layout(fig)
+    return fig
+
+
+def build_monthly_trend_chart(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("월별 집행 대비 회수")
+
+    melted = df.melt(
+        id_vars="period",
+        value_vars=["cost", "payment_amount"],
+        var_name="metric",
+        value_name="value",
+    )
+    melted["metric_label"] = melted["metric"].map(DISPLAY_NAMES)
+
+    fig = px.line(
+        melted,
+        x="period",
+        y="value",
+        color="metric_label",
+        markers=True,
+        color_discrete_map={
+            DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
+            DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
+        },
+        title="월별 집행 대비 회수",
+    )
+    fig.update_traces(
+        hovertemplate="월=%{x|%Y-%m}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>"
+    )
+    apply_currency_yaxis(fig)
+    apply_common_layout(fig)
+    return fig
+
+
+def build_platform_roas_scatter(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("유입 대비 효율 높은 플랫폼")
+
+    fig = px.scatter(
+        df,
+        x="inflow_count",
+        y="roas",
+        size="payment_amount",
+        color="platform",
+        text="platform",
+        custom_data=["payment_amount"],
+        title="유입 대비 효율 높은 플랫폼",
+    )
+    fig.update_traces(
+        textposition="top center",
+        hovertemplate=(
+            "플랫폼=%{text}<br>"
+            "유입수=%{x:,.0f}<br>"
+            "ROAS=%{y:.1f}%<br>"
+            "결제금액=%{customdata[0]:,.0f}원<extra></extra>"
+        ),
+    )
+    fig.update_xaxes(title="유입수", tickformat=",.0f")
+    fig.update_yaxes(title="ROAS (%)", ticksuffix="%", tickformat=",.1f")
+    apply_common_layout(fig)
+    return fig
+
+
+def build_worker_performance_chart(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("상위 작업자 집행 대비 매출")
+
+    melted = df.melt(
+        id_vars="worker",
+        value_vars=["cost", "payment_amount"],
+        var_name="metric",
+        value_name="value",
+    )
+    melted["metric_label"] = melted["metric"].map(DISPLAY_NAMES)
+
+    fig = px.bar(
+        melted,
+        x="value",
+        y="worker",
+        orientation="h",
+        color="metric_label",
+        barmode="group",
+        color_discrete_map={
+            DISPLAY_NAMES["cost"]: CHART_COLORS["cost"],
+            DISPLAY_NAMES["payment_amount"]: CHART_COLORS["payment_amount"],
+        },
+        title="상위 작업자 집행 대비 매출",
+    )
+    fig.update_traces(
+        hovertemplate="작업자=%{y}<br>지표=%{fullData.name}<br>금액=%{x:,.0f}원<extra></extra>"
+    )
+    fig.update_xaxes(title="금액")
+    apply_currency_xaxis(fig)
+    apply_common_layout(fig)
+    return fig
+
+
+def build_payment_share_donut(df: pd.DataFrame):
+    if df.empty:
+        return empty_figure("플랫폼별 결제금액 비중")
+
+    chart_df = df.loc[df["payment_amount"] > 0, ["platform", "payment_amount"]].copy()
+    if chart_df.empty:
+        chart_df = pd.DataFrame({"platform": ["결제 없음"], "payment_amount": [1]})
+
+    fig = px.pie(
+        chart_df,
+        names="platform",
+        values="payment_amount",
+        hole=0.58,
+        title="플랫폼별 결제금액 비중",
+    )
+    fig.update_traces(
+        textinfo="percent+label",
+        hovertemplate="플랫폼=%{label}<br>결제금액=%{value:,.0f}원<extra></extra>",
+    )
+    apply_common_layout(fig)
+    return fig
 
 
 def render_tables(df: pd.DataFrame) -> None:
-    working_df = ensure_table_columns(df)
-
-    st.markdown("### 플랫폼별 성과 요약")
-    st.dataframe(format_summary_table(summarize_by_platform(working_df)), use_container_width=True, hide_index=True)
-
-    st.markdown("### 작업자별 성과 요약")
-    st.dataframe(format_summary_table(summarize_by_worker(working_df)), use_container_width=True, hide_index=True)
-
-    st.markdown("### 작업 상세 리스트")
+    st.subheader("작업 상세 리스트")
     detail_columns = [
         "date",
         "platform",
@@ -634,115 +549,175 @@ def render_tables(df: pd.DataFrame) -> None:
         "payment_count",
         "payment_amount",
         "match_status",
-        "match_method",
-        "perf_latest_collected_at",
-        "perf_debug_rows",
     ]
-    detail_df = working_df[detail_columns].sort_values(["date", "platform", "worker"], ascending=[False, True, True]).copy()
-    detail_df["date"] = detail_df["date"].dt.strftime("%Y-%m-%d").fillna("")
+    detail_df = df.reindex(columns=detail_columns).copy()
+    detail_df = detail_df.rename(
+        columns={
+            "date": "일자",
+            "platform": "플랫폼",
+            "worker": "작업자",
+            "product_name": "상품명",
+            "manager": "담당자",
+            "transfer_status": "이체여부",
+            "cost": "비용",
+            "keyword": "키워드",
+            "customer_count": "고객수",
+            "inflow_count": "유입수",
+            "page_count": "클릭수",
+            "payment_count": "결제수",
+            "payment_amount": "결제금액",
+            "match_status": "매칭상태",
+        }
+    )
+    if "일자" in detail_df.columns:
+        detail_df["일자"] = pd.to_datetime(detail_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d")
+        detail_df["일자"] = detail_df["일자"].fillna("")
+    for currency_column in ["비용", "결제금액"]:
+        if currency_column in detail_df.columns:
+            detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
-    st.markdown("### 매칭 실패 리스트")
-    unmatched = working_df[working_df["match_status"] != "매칭"][
-        [
-            "date",
-            "platform",
-            "worker",
-            "product_name",
-            "manager",
-            "transfer_status",
-            "cost",
-            "keyword",
-            "match_nt_source",
-            "match_nt_detail",
-            "match_nt_keyword",
-            "match_method",
-            "perf_latest_collected_at",
-            "perf_debug_rows",
-            "unmatched_reason",
-        ]
-    ].copy()
-    unmatched["date"] = unmatched["date"].dt.strftime("%Y-%m-%d").fillna("")
-    st.dataframe(unmatched, use_container_width=True, hide_index=True)
+    unmatched_df = df.loc[df["match_status"] == "미매칭", [
+        "date",
+        "platform",
+        "worker",
+        "product_name",
+        "keyword",
+        "unmatched_reason",
+    ]].copy()
+    unmatched_df = unmatched_df.rename(
+        columns={
+            "date": "일자",
+            "platform": "플랫폼",
+            "worker": "작업자",
+            "product_name": "상품명",
+            "keyword": "키워드",
+            "unmatched_reason": "미매칭 사유",
+        }
+    )
+    if "일자" in unmatched_df.columns:
+        unmatched_df["일자"] = pd.to_datetime(unmatched_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d")
+        unmatched_df["일자"] = unmatched_df["일자"].fillna("")
+
+    st.subheader("매칭 실패 리스트")
+    st.dataframe(unmatched_df, use_container_width=True, hide_index=True)
 
 
-def summarize_by_platform(df: pd.DataFrame) -> pd.DataFrame:
+def render_performance_totals(performance_df: pd.DataFrame) -> None:
+    st.subheader("원본 효율 DB 전체 합계")
+    kpis = build_performance_kpis(performance_df)
+    columns = st.columns(len(kpis))
+    for column, metric in zip(columns, kpis, strict=False):
+        with column:
+            st.metric(metric["label"], metric["value"])
+    st.caption("현재 필터에 걸린 매칭 행과 연결된 효율 DB 기준 합계입니다.")
+
+
+def build_performance_kpis(df: pd.DataFrame) -> list[dict[str, str]]:
     if df.empty:
-        return pd.DataFrame(
-            columns=["platform", "작업수", "총비용", "고객수", "유입수", "페이지수", "결제수", "결제금액", "매칭건수", "ROAS", "매칭률"]
-        )
+        return [
+            {"label": "고객수", "value": "0"},
+            {"label": "유입수", "value": "0"},
+            {"label": "클릭수", "value": "0"},
+            {"label": "결제수", "value": "0"},
+            {"label": "결제금액", "value": format_currency(0)},
+        ]
 
-    summary = (
-        df.groupby("platform", dropna=False)
-        .agg(
-            작업수=("row_id", "count"),
-            총비용=("cost", "sum"),
-            고객수=("customer_count", "sum"),
-            유입수=("inflow_count", "sum"),
-            페이지수=("page_count", "sum"),
-            결제수=("payment_count", "sum"),
-            결제금액=("payment_amount", "sum"),
-            매칭건수=("is_matched", "sum"),
+    return [
+        {"label": "고객수", "value": format_number(df["customer_count"].fillna(0).sum())},
+        {"label": "유입수", "value": format_number(df["inflow_count"].fillna(0).sum())},
+        {"label": "클릭수", "value": format_number(df["page_count"].fillna(0).sum())},
+        {"label": "결제수", "value": format_number(df["payment_count"].fillna(0).sum())},
+        {"label": "결제금액", "value": format_currency(df["payment_amount"].fillna(0).sum())},
+    ]
+
+
+def filter_performance_by_matched_rows(
+    matched_df: pd.DataFrame,
+    performance_df: pd.DataFrame,
+) -> pd.DataFrame:
+    if matched_df.empty or performance_df.empty:
+        return performance_df.iloc[0:0].copy()
+
+    keys = set(
+        matched_df.loc[matched_df["is_matched"].fillna(False)]
+        .apply(
+            lambda row: build_match_key(row["matched_nt_source"] or row["match_nt_source"], row["match_nt_detail"], row["match_nt_keyword"]),
+            axis=1,
         )
-        .reset_index()
+        .tolist()
     )
-    summary["ROAS"] = summary.apply(
-        lambda row: row["결제금액"] / row["총비용"] * 100 if row["총비용"] else 0,
+    if not keys:
+        return performance_df.iloc[0:0].copy()
+
+    working = performance_df.copy()
+    working["match_key"] = working.apply(
+        lambda row: build_match_key(row["nt_source"], row["nt_detail"], row["nt_keyword"]),
         axis=1,
     )
-    summary["매칭률"] = summary.apply(
-        lambda row: row["매칭건수"] / row["작업수"] * 100 if row["작업수"] else 0,
-        axis=1,
+    return working.loc[working["match_key"].isin(keys)].copy()
+
+
+def values_without_blank(series: pd.Series) -> list[str]:
+    return [value for value in series.dropna().astype(str).tolist() if value.strip()]
+
+
+def format_currency(value: float) -> str:
+    return f"₩{float(value):,.0f}"
+
+
+def format_percent(value: float) -> str:
+    return f"{float(value):,.1f}%"
+
+
+def format_number(value: float | int) -> str:
+    return f"{float(value):,.0f}"
+
+
+def apply_currency_yaxis(fig) -> None:
+    fig.update_yaxes(tickprefix="₩", tickformat=",.0f")
+
+
+def apply_currency_xaxis(fig) -> None:
+    fig.update_xaxes(tickprefix="₩", tickformat=",.0f")
+
+
+def apply_count_yaxis(fig) -> None:
+    fig.update_yaxes(tickformat=",.0f")
+
+
+def apply_common_layout(fig) -> None:
+    fig.update_layout(
+        paper_bgcolor="rgba(15, 23, 42, 0.0)",
+        plot_bgcolor="rgba(15, 23, 42, 0.0)",
+        font=dict(color="#e5eefc"),
+        legend_title_text="",
+        margin=dict(l=20, r=20, t=60, b=20),
+        hoverlabel=dict(bgcolor="#0f172a", font_color="#e5eefc"),
     )
-    return summary.sort_values("총비용", ascending=False).reset_index(drop=True)
+    fig.update_xaxes(showgrid=False)
+    fig.update_yaxes(gridcolor="rgba(148, 163, 184, 0.12)")
 
 
-def summarize_by_worker(df: pd.DataFrame) -> pd.DataFrame:
-    working_df = df.copy()
-    working_df["worker"] = working_df["worker"].fillna("").astype(str).str.strip()
-    working_df = working_df[working_df["worker"].ne("")].copy()
-
-    if working_df.empty:
-        return pd.DataFrame(
-            columns=["작업자", "작업수", "총비용", "고객수", "유입수", "페이지수", "결제수", "결제금액", "매칭건수", "ROAS", "매칭률"]
-        )
-
-    summary = (
-        working_df.groupby("worker", dropna=False)
-        .agg(
-            작업수=("row_id", "count"),
-            총비용=("cost", "sum"),
-            고객수=("customer_count", "sum"),
-            유입수=("inflow_count", "sum"),
-            페이지수=("page_count", "sum"),
-            결제수=("payment_count", "sum"),
-            결제금액=("payment_amount", "sum"),
-            매칭건수=("is_matched", "sum"),
-        )
-        .reset_index()
-        .rename(columns={"worker": "작업자"})
+def empty_figure(title: str):
+    fig = px.scatter(title=title)
+    fig.update_layout(
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        annotations=[
+            dict(
+                text="표시할 데이터가 없습니다.",
+                showarrow=False,
+                x=0.5,
+                y=0.5,
+                xref="paper",
+                yref="paper",
+                font=dict(color="#9db2ce", size=14),
+            )
+        ],
     )
-    summary["ROAS"] = summary.apply(
-        lambda row: row["결제금액"] / row["총비용"] * 100 if row["총비용"] else 0,
-        axis=1,
-    )
-    summary["매칭률"] = summary.apply(
-        lambda row: row["매칭건수"] / row["작업수"] * 100 if row["작업수"] else 0,
-        axis=1,
-    )
-    return summary.sort_values("총비용", ascending=False).reset_index(drop=True)
-
-
-def format_summary_table(df: pd.DataFrame) -> pd.DataFrame:
-    formatted = df.copy()
-    for column in formatted.columns:
-        if column in {"platform", "작업자"}:
-            continue
-        if column in {"ROAS", "매칭률"}:
-            formatted[column] = formatted[column].map(lambda value: f"{value:,.1f}%")
-        else:
-            formatted[column] = formatted[column].map(lambda value: f"{value:,.0f}")
-    return formatted
+    apply_common_layout(fig)
+    return fig
 
 
 if __name__ == "__main__":

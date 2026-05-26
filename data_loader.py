@@ -12,15 +12,16 @@ import pandas as pd
 
 SPREADSHEET_ID = "1NeeQNSiG9D9u5U290vyW_LKIn9Siyd9EinwZaUXzIiM"
 SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit"
-SHEET_GIDS = {
-    "(DB)블로그(완료건 기준)": "198507325",
-    "(DB)인스타그램(완료건 기준)": "1485104371",
-    "(DB)유튜브(완료건 기준)": "534722161",
-    "(DB)X(완료건 기준)": "1433936261",
-    "(DB)커뮤니티": "1056422214",
-    "(DB)브랜드커넥트": "255349713",
-    "(DB)바이럴 효율": "1675730631",
+
+PAID_SHEETS = {
+    "블로그": {"gid": "198507325", "sheet_name": "(DB)블로그(유료건 기준)"},
+    "인스타그램": {"gid": "1485104371", "sheet_name": "(DB)인스타그램(유료건 기준)"},
+    "유튜브": {"gid": "534722161", "sheet_name": "(DB)유튜브(유료건 기준)"},
+    "X": {"gid": "1433936261", "sheet_name": "(DB)X(유료건 기준)"},
+    "커뮤니티": {"gid": "1056422214", "sheet_name": "(DB)커뮤니티"},
+    "브랜드커넥트": {"gid": "255349713", "sheet_name": "(DB)브랜드커넥트"},
 }
+PERFORMANCE_SHEET = {"gid": "1675730631", "sheet_name": "(DB)바이럴효율"}
 
 PAID_COLUMNS = [
     "row_id",
@@ -51,12 +52,7 @@ PERFORMANCE_METRICS = [
     "payment_amount_attributed",
 ]
 
-LATEST_SNAPSHOT_METRICS = [
-    "customer_count",
-    "inflow_count",
-    "page_count",
-]
-
+LATEST_SNAPSHOT_METRICS = ["customer_count", "inflow_count", "page_count"]
 MAX_VALUE_METRICS = [
     "payment_count",
     "payment_amount",
@@ -77,11 +73,19 @@ def load_data() -> dict[str, pd.DataFrame]:
 
     paid_frames: list[pd.DataFrame] = []
     for platform_group, sheet_name in sheets.paid.items():
-        standardized = standardize_paid_sheet(raw_data.get(sheet_name, pd.DataFrame()), platform_group, sheet_name)
+        standardized = standardize_paid_sheet(
+            raw_data.get(sheet_name, pd.DataFrame()),
+            platform_group,
+            sheet_name,
+        )
         if not standardized.empty:
             paid_frames.append(standardized)
 
-    paid_df = pd.concat(paid_frames, ignore_index=True) if paid_frames else pd.DataFrame(columns=PAID_COLUMNS)
+    paid_df = (
+        pd.concat(paid_frames, ignore_index=True)
+        if paid_frames
+        else pd.DataFrame(columns=PAID_COLUMNS)
+    )
     paid_df = finalize_paid_df(paid_df)
 
     performance_raw = raw_data.get(sheets.performance, pd.DataFrame())
@@ -101,7 +105,7 @@ def load_data() -> dict[str, pd.DataFrame]:
         [
             {
                 "source_url": SPREADSHEET_URL,
-                "collection_rule": "키별 최신 수집일 유지, 트래픽은 최신 기준·결제는 최대값 기준",
+                "collection_rule": "키별 최신 수집일 유지, 트래픽은 최신 기준, 결제는 최대값 기준",
                 "latest_collection_date": latest_collection_date,
                 "earliest_collection_date": earliest_collection_date,
                 "load_errors": " | ".join(load_errors),
@@ -126,8 +130,9 @@ def load_google_public_sheets_data() -> tuple[dict[str, pd.DataFrame], list[str]
     data: dict[str, pd.DataFrame] = {}
     errors: list[str] = []
 
-    for sheet_name, gid in SHEET_GIDS.items():
-        csv_url = build_csv_url(SPREADSHEET_ID, gid)
+    for sheet_meta in list(PAID_SHEETS.values()) + [PERFORMANCE_SHEET]:
+        sheet_name = sheet_meta["sheet_name"]
+        csv_url = build_csv_url(SPREADSHEET_ID, sheet_meta["gid"])
         try:
             data[sheet_name] = pd.read_csv(csv_url)
         except pd.errors.EmptyDataError:
@@ -140,36 +145,18 @@ def load_google_public_sheets_data() -> tuple[dict[str, pd.DataFrame], list[str]
 
 
 def identify_sheets(sheet_names: Iterable[str]) -> WorkbookSheets:
-    paid: dict[str, str] = {}
-    performance = ""
-
-    for name in sheet_names:
-        compact = normalize_sheet_name(name)
-        if "db" not in compact:
-            continue
-        if "바이럴효율" in compact:
-            performance = name
-        elif "블로그" in compact:
-            paid["블로그"] = name
-        elif "인스타그램" in compact:
-            paid["인스타그램"] = name
-        elif "유튜브" in compact:
-            paid["유튜브"] = name
-        elif re.search(r"\bx\b", name.lower()):
-            paid["X"] = name
-        elif "커뮤니티" in compact:
-            paid["커뮤니티"] = name
-        elif "브랜드커넥트" in compact:
-            paid["브랜드커넥트"] = name
+    available = set(sheet_names)
+    paid = {
+        platform_group: meta["sheet_name"]
+        for platform_group, meta in PAID_SHEETS.items()
+        if meta["sheet_name"] in available
+    }
+    performance = PERFORMANCE_SHEET["sheet_name"] if PERFORMANCE_SHEET["sheet_name"] in available else ""
 
     if not performance:
-        raise ValueError("'(DB)바이럴 효율' 시트를 찾지 못했습니다.")
+        raise ValueError(f"'{PERFORMANCE_SHEET['sheet_name']}' 시트를 찾지 못했습니다.")
 
     return WorkbookSheets(paid=paid, performance=performance)
-
-
-def normalize_sheet_name(value: str) -> str:
-    return re.sub(r"\s+", "", clean_text(value)).lower()
 
 
 def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: str) -> pd.DataFrame:
@@ -177,57 +164,82 @@ def standardize_paid_sheet(df: pd.DataFrame, platform_group: str, sheet_name: st
         return pd.DataFrame(columns=PAID_COLUMNS)
 
     clean_df = df.copy()
-    clean_df.columns = [sanitize_column_name(col) for col in clean_df.columns]
-    clean_df = clean_df.loc[:, ~clean_df.columns.str.startswith("unnamed_")]
+    clean_df.columns = [sanitize_column_name(column) for column in clean_df.columns]
+    clean_df = clean_df.loc[:, ~clean_df.columns.duplicated()]
+    clean_df = clean_df.loc[:, ~clean_df.columns.str.startswith("unnamed")]
     clean_df = clean_df.dropna(how="all").copy()
 
     if platform_group == "커뮤니티":
         standardized = pd.DataFrame(
             {
-                "date": to_datetime_series(get_series(clean_df, "날짜")),
-                "platform": get_series(clean_df, "플랫폼").map(clean_text),
+                "date": to_datetime_series(get_series_by_alias(clean_df, ["날짜", "일자", "업로드일"])),
+                "platform": get_series_by_alias(clean_df, ["플랫폼", "채널", "매체"]).map(clean_text),
                 "platform_group": platform_group,
-                "worker": get_series(clean_df, "플랫폼").map(clean_text),
-                "product_name": get_series(clean_df, "키워드").map(clean_text),
-                "manager": "",
-                "transfer_status": "",
-                "cost": to_numeric_series(get_series(clean_df, "비용")),
-                "keyword": get_series(clean_df, "키워드").map(clean_text),
-                "url": "",
-                "notes": get_series(clean_df, "비고").map(clean_text),
+                "worker": first_non_empty_series(
+                    get_series_by_alias(clean_df, ["작업자", "작업", "운영자"]),
+                    get_series_by_alias(clean_df, ["플랫폼", "채널", "매체"]),
+                ).map(clean_text),
+                "product_name": first_non_empty_series(
+                    get_series_by_alias(clean_df, ["키워드", "상품명", "상품"]),
+                    get_series_by_alias(clean_df, ["제목", "콘텐츠명"]),
+                ).map(clean_text),
+                "manager": get_series_by_alias(clean_df, ["담당자", "담당"]).map(clean_text),
+                "transfer_status": get_series_by_alias(clean_df, ["이체여부"]).map(clean_transfer_status),
+                "cost": to_numeric_series(
+                    first_non_empty_series(
+                        get_series_by_alias(clean_df, ["비용", "집행금액", "예상비용"]),
+                        get_series_by_alias(clean_df, ["광고비", "원고료"]),
+                    )
+                ),
+                "keyword": first_non_empty_series(
+                    get_series_by_alias(clean_df, ["키워드", "상품명", "상품"]),
+                    get_series_by_alias(clean_df, ["제목", "콘텐츠명"]),
+                ).map(clean_text),
+                "url": get_link_series(clean_df).map(clean_text),
+                "notes": get_series_by_alias(clean_df, ["비고", "메모"]).map(clean_text),
                 "source_sheet": sheet_name,
             }
         )
     else:
-        link_column = next((col for col in clean_df.columns if col.endswith("링크")), "")
         standardized = pd.DataFrame(
             {
                 "date": to_datetime_series(
-                    get_series(clean_df, "업로드날짜")
-                    if "업로드날짜" in clean_df.columns
-                    else get_series(clean_df, "날짜")
+                    first_non_empty_series(
+                        get_series_by_alias(clean_df, ["업로드날짜", "업로드일", "게시일"]),
+                        get_series_by_alias(clean_df, ["날짜", "일자"]),
+                    )
                 ),
                 "platform": platform_group,
                 "platform_group": platform_group,
-                "worker": get_series(clean_df, "작업자").map(clean_text),
-                "product_name": (
-                    get_series(clean_df, "제안제품") if "제안제품" in clean_df.columns else get_series(clean_df, "제품명")
+                "worker": get_series_by_alias(clean_df, ["작업자", "작업", "닉네임", "계정"]).map(clean_text),
+                "product_name": first_non_empty_series(
+                    get_series_by_alias(clean_df, ["제안상품", "제안제품", "상품명", "제품명", "상품"]),
+                    get_series_by_alias(clean_df, ["키워드", "캠페인명"]),
                 ).map(clean_text),
-                "manager": get_series(clean_df, "담당자").map(clean_text),
-                "transfer_status": get_series(clean_df, "이체여부").map(clean_transfer_status),
+                "manager": get_series_by_alias(clean_df, ["담당자", "담당"]).map(clean_text),
+                "transfer_status": get_series_by_alias(clean_df, ["이체여부"]).map(clean_transfer_status),
                 "cost": to_numeric_series(
-                    get_series(clean_df, "유상비용") if "유상비용" in clean_df.columns else get_series(clean_df, "비용")
+                    first_non_empty_series(
+                        get_series_by_alias(clean_df, ["유상비용", "예상비용", "비용", "집행금액"]),
+                        get_series_by_alias(clean_df, ["광고비", "원고료"]),
+                    )
                 ),
-                "keyword": get_series(clean_df, "키워드").map(clean_text),
-                "url": get_series(clean_df, link_column).map(clean_text) if link_column else "",
-                "notes": get_series(clean_df, "비고").map(clean_text),
+                "keyword": first_non_empty_series(
+                    get_series_by_alias(clean_df, ["키워드"]),
+                    get_series_by_alias(clean_df, ["상품명", "상품"]),
+                ).map(clean_text),
+                "url": get_link_series(clean_df).map(clean_text),
+                "notes": get_series_by_alias(clean_df, ["비고", "메모"]).map(clean_text),
                 "source_sheet": sheet_name,
             }
         )
 
-    standardized["row_id"] = [f"{platform_group}-{idx + 1}" for idx in range(len(standardized))]
+    standardized["row_id"] = [f"{platform_group}-{index + 1}" for index in range(len(standardized))]
     standardized = standardized.reindex(columns=PAID_COLUMNS[:-3])
-    standardized = standardized.dropna(how="all", subset=["date", "worker", "product_name", "cost", "keyword"])
+    standardized = standardized.dropna(
+        how="all",
+        subset=["date", "worker", "product_name", "cost", "keyword"],
+    )
     return standardized
 
 
@@ -238,6 +250,7 @@ def finalize_paid_df(df: pd.DataFrame) -> pd.DataFrame:
     result = df.copy()
     result["date"] = pd.to_datetime(result["date"], errors="coerce")
     result["platform"] = result["platform"].fillna(result["platform_group"]).map(clean_text)
+    result["platform_group"] = result["platform_group"].map(clean_text)
     result["worker"] = result["worker"].map(clean_text)
     result["product_name"] = result["product_name"].map(clean_text)
     result["manager"] = result["manager"].map(clean_text)
@@ -253,41 +266,51 @@ def finalize_paid_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def finalize_performance_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(
+            columns=["nt_source", "nt_detail", "nt_keyword", "collected_at"]
+            + PERFORMANCE_METRICS
+            + ["perf_debug_rows", "perf_latest_collected_at"]
+        )
+
     working = df.copy()
-    working.columns = [sanitize_column_name(col) for col in working.columns]
+    working.columns = [sanitize_column_name(column) for column in working.columns]
+    working = working.loc[:, ~working.columns.str.startswith("unnamed")]
+    working = working.dropna(how="all").copy()
 
-    column_map = {
-        "채널속성": "channel_type",
-        "ntsource": "nt_source",
-        "ntmedium": "nt_medium",
-        "ntdetail": "nt_detail",
-        "ntkeyword": "nt_keyword",
-        "고객수": "customer_count",
-        "유입수": "inflow_count",
-        "페이지수": "page_count",
-        "결제수": "payment_count",
-        "결제금액": "payment_amount",
-        "결제수+14일기여도추정": "payment_count_attributed",
-        "결제금액+14일기여도추정": "payment_amount_attributed",
-    }
-    working = working.rename(columns=column_map)
-
-    required = list(column_map.values())
-    for column in required:
-        if column not in working.columns:
-            working[column] = 0 if column in PERFORMANCE_METRICS else ""
-
-    working = working[required].dropna(how="all").copy()
-    working["collected_at"] = extract_collection_date(df)
+    working["nt_source"] = get_series_by_alias(
+        working,
+        ["nt_source", "ntsource", "소스", "매체", "플랫폼"],
+    ).map(normalize_nt_source)
+    working["nt_detail"] = first_non_empty_series(
+        get_series_by_alias(working, ["nt_detail", "ntdetail", "상세", "작업자", "계정"]),
+        get_series_by_alias(working, ["닉네임", "운영자"]),
+    ).map(normalize_match_text)
+    working["nt_keyword"] = first_non_empty_series(
+        get_series_by_alias(working, ["nt_keyword", "ntkeyword", "키워드"]),
+        get_series_by_alias(working, ["상품명", "상품", "캠페인명"]),
+    ).map(normalize_match_text)
+    working["collected_at"] = extract_collection_date(working)
     working["row_order"] = range(len(working))
-    working["nt_source"] = working["nt_source"].map(normalize_nt_source)
-    working["nt_detail"] = working["nt_detail"].map(normalize_match_text)
-    working["nt_keyword"] = working["nt_keyword"].map(normalize_match_text)
 
     for metric in PERFORMANCE_METRICS:
-        working[metric] = to_numeric_series(working[metric]).fillna(0)
+        working[metric] = to_numeric_series(
+            get_series_by_alias(
+                working,
+                performance_metric_aliases(metric),
+            )
+        ).fillna(0)
 
-    return collapse_cumulative_performance_rows(working, ["nt_source", "nt_detail", "nt_keyword"])
+    working = working[
+        working["nt_source"].ne("")
+        | working["nt_detail"].ne("")
+        | working["nt_keyword"].ne("")
+    ].copy()
+
+    return collapse_cumulative_performance_rows(
+        working,
+        key_columns=["nt_source", "nt_detail", "nt_keyword"],
+    )
 
 
 def match_paid_with_performance(
@@ -305,7 +328,7 @@ def match_paid_with_performance(
         empty["match_method"] = ""
         empty["perf_debug_rows"] = ""
         empty["perf_latest_collected_at"] = ""
-        empty["unmatched_reason"] = "유상작업 데이터 없음"
+        empty["unmatched_reason"] = "유상 작업 데이터가 없습니다."
         return empty, empty.copy()
 
     perf_lookup = performance_df.copy()
@@ -396,7 +419,9 @@ def build_nt_source_candidates(row: pd.Series) -> list[str]:
     if platform_group == "커뮤니티":
         normalized_platform = normalize_nt_source(platform_value)
         return [normalized_platform] if normalized_platform else []
-    return [normalize_nt_source(platform_group)]
+
+    normalized_platform_group = normalize_nt_source(platform_group)
+    return [normalized_platform_group] if normalized_platform_group else []
 
 
 def build_match_key(nt_source: str, nt_detail: str, nt_keyword: str) -> str:
@@ -409,14 +434,47 @@ def build_match_key(nt_source: str, nt_detail: str, nt_keyword: str) -> str:
     )
 
 
+def find_reverse_match(
+    paid_row: pd.Series,
+    perf_candidates: list[dict],
+    used_perf_keys: set[str],
+) -> dict | None:
+    worker_token = normalize_match_text(paid_row.get("worker", ""))
+    product_token = normalize_product_token(paid_row.get("product_name", ""))
+    paid_date = pd.to_datetime(paid_row.get("date"), errors="coerce")
+
+    if not worker_token or not product_token:
+        return None
+
+    for candidate in perf_candidates:
+        candidate_key = candidate.get("match_key", "")
+        if candidate_key in used_perf_keys:
+            continue
+        if normalize_match_text(candidate.get("nt_detail", "")) != worker_token:
+            continue
+
+        keyword_text = clean_text(candidate.get("nt_keyword", ""))
+        if product_token not in normalize_product_token(keyword_text):
+            continue
+
+        keyword_date = extract_date_from_keyword(keyword_text)
+        if paid_date is not pd.NaT and keyword_date is not None and pd.notna(paid_date):
+            if paid_date.normalize() != keyword_date:
+                continue
+
+        return candidate
+
+    return None
+
+
 def infer_unmatched_reason(row: pd.Series) -> str:
     if not row.get("match_nt_keyword"):
-        return "직접 매칭용 키워드 없음"
+        return "직접 매칭할 키워드가 없습니다."
     if not row.get("match_nt_detail"):
-        return "작업자 없음"
+        return "작업자 정보가 없습니다."
     if not row.get("match_nt_source"):
         return "nt_source 추론 불가"
-    return "성과 DB에 일치 키 없음"
+    return "성과 DB와 일치하는 키가 없습니다."
 
 
 def extract_collection_date(df: pd.DataFrame) -> pd.Series:
@@ -442,9 +500,7 @@ def collapse_cumulative_performance_rows(
 ) -> pd.DataFrame:
     if working.empty:
         return pd.DataFrame(
-            columns=key_columns
-            + PERFORMANCE_METRICS
-            + ["perf_debug_rows", "perf_latest_collected_at"]
+            columns=key_columns + PERFORMANCE_METRICS + ["perf_debug_rows", "perf_latest_collected_at"]
         )
 
     working = working.copy()
@@ -472,9 +528,6 @@ def collapse_cumulative_performance_rows(
         else:
             latest_group = group.sort_values("row_order").tail(1).copy()
 
-        if latest_group.empty:
-            continue
-
         row_data = {
             "nt_source": latest_group.iloc[0]["nt_source"],
             "nt_detail": latest_group.iloc[0]["nt_detail"],
@@ -482,109 +535,46 @@ def collapse_cumulative_performance_rows(
             "perf_debug_rows": " | ".join(
                 latest_group.apply(
                     lambda row: (
-                        f"{clean_text(row.get('channel_type'))}/"
-                        f"{clean_text(row.get('nt_source'))}/"
-                        f"{clean_text(row.get('nt_detail'))}/"
-                        f"{clean_text(row.get('nt_keyword'))}"
+                        f"{row.get('nt_source', '')}/{row.get('nt_detail', '')}/{row.get('nt_keyword', '')}"
                     ),
                     axis=1,
                 ).tolist()
             ),
             "perf_latest_collected_at": (
-                latest_group["collected_at"].dropna().max().strftime("%Y-%m-%d")
-                if latest_group["collected_at"].notna().any()
+                latest_timestamp.strftime("%Y-%m-%d")
+                if pd.notna(latest_group.iloc[0]["effective_collected_at"])
                 else ""
             ),
         }
 
         for metric in LATEST_SNAPSHOT_METRICS:
-            row_data[metric] = latest_group[metric].sum()
+            row_data[metric] = to_numeric_series(latest_group[metric]).fillna(0).sum()
 
         for metric in MAX_VALUE_METRICS:
-            row_data[metric] = group[metric].max()
+            row_data[metric] = to_numeric_series(group[metric]).fillna(0).max()
 
         collapsed_rows.append(row_data)
 
-    return pd.DataFrame(collapsed_rows).sort_values(key_columns).reset_index(drop=True)
+    return pd.DataFrame(collapsed_rows)
 
 
-def find_reverse_match(
-    row: pd.Series,
-    perf_candidates: list[dict],
-    used_perf_keys: set[str],
-) -> dict | None:
-    source_candidates = set(build_nt_source_candidates(row))
-    worker = row.get("match_nt_detail", "")
-    if not source_candidates or not worker:
-        return None
-
-    relevant = [
-        candidate
-        for candidate in perf_candidates
-        if (
-            candidate.get("match_key", "") not in used_perf_keys
-            and candidate.get("nt_source") in source_candidates
-            and candidate.get("nt_detail") == worker
-        )
-    ]
-    if not relevant:
-        return None
-
-    scored: list[tuple[int, dict]] = []
-    for candidate in relevant:
-        score = reverse_match_score(row, candidate)
-        if score > 0:
-            scored.append((score, candidate))
-
-    if not scored:
-        return None
-
-    scored.sort(key=lambda item: item[0], reverse=True)
-    top_score, top_candidate = scored[0]
-    second_score = scored[1][0] if len(scored) > 1 else -1
-
-    if top_score < 2:
-        return None
-    if top_score == second_score:
-        return None
-    return top_candidate
-
-
-def reverse_match_score(row: pd.Series, candidate: dict) -> int:
-    score = 0
-    paid_product = normalize_product_token(row.get("product_name", ""))
-    candidate_keyword = normalize_product_token(candidate.get("nt_keyword", ""))
-    paid_keyword = normalize_match_text(row.get("keyword", ""))
-
-    if paid_keyword and paid_keyword == candidate.get("nt_keyword", ""):
-        score += 5
-
-    if paid_product and candidate_keyword:
-        if paid_product in candidate_keyword or candidate_keyword in paid_product:
-            score += 3
-
-    paid_date = row.get("date")
-    keyword_date = extract_date_from_keyword(candidate.get("nt_keyword", ""))
-    if pd.notna(paid_date) and keyword_date is not None:
-        if abs((paid_date.normalize() - keyword_date).days) <= 21:
-            score += 2
-
-    if score == 0 and candidate_keyword and candidate_keyword not in {"-", "shoppinglive"}:
-        score += 1
-
-    return score
+def performance_metric_aliases(metric: str) -> list[str]:
+    aliases = {
+        "customer_count": ["고객수", "고객", "customer_count", "customercount"],
+        "inflow_count": ["유입수", "유입", "inflow_count", "inflowcount"],
+        "page_count": ["페이지수", "클릭수", "page_count", "pagecount", "페이지", "클릭"],
+        "payment_count": ["결제수", "결제건수", "payment_count", "paymentcount"],
+        "payment_amount": ["결제금액", "결제액", "payment_amount", "paymentamount", "매출"],
+        "payment_count_attributed": ["기여결제수", "결제수기여", "payment_count_attributed"],
+        "payment_amount_attributed": ["기여결제금액", "결제금액기여", "payment_amount_attributed"],
+    }
+    return aliases[metric]
 
 
 def sanitize_column_name(value: object) -> str:
-    text = clean_text(value)
-    text = text.replace(" ", "")
-    text = text.replace("/", "_")
-    text = text.replace("(", "")
-    text = text.replace(")", "")
-    text = text.replace(".", "")
-    text = text.replace("-", "")
-    text = text.replace("_", "")
-    return text.lower()
+    text = unicodedata.normalize("NFKC", clean_text(value)).lower()
+    text = re.sub(r"[\s\-_()/\[\]]+", "", text)
+    return text
 
 
 def clean_transfer_status(value: object) -> str:
@@ -593,7 +583,7 @@ def clean_transfer_status(value: object) -> str:
         return "완료"
     if text in {"x", "n", "no", "미이체"}:
         return "미이체"
-    return "미기재" if text else "미기재"
+    return "미기재"
 
 
 def clean_text(value: object) -> str:
@@ -617,17 +607,18 @@ def normalize_nt_source(value: object) -> str:
     aliases = {
         "blog": "naverblog",
         "블로그": "naverblog",
+        "naverblog": "naverblog",
+        "naver": "naver",
         "인스타": "instagram",
         "인스타그램": "instagram",
+        "instagram": "instagram",
         "유튜브": "youtube",
         "youtube": "youtube",
         "x": "x",
         "twitter": "x",
         "커뮤니티": "community",
+        "community": "community",
         "브랜드커넥트": "nshoplive",
-        "naverblog": "naverblog",
-        "naver": "naver",
-        "instagram": "instagram",
         "nshoplive": "nshoplive",
         "toss": "toss",
         "cafe": "cafe",
@@ -647,46 +638,83 @@ def extract_date_from_keyword(value: object) -> pd.Timestamp | None:
     if not match:
         return None
 
-    date_token = match.group(1)
-    if len(date_token) == 8:
-        parsed = pd.to_datetime(date_token, format="%Y%m%d", errors="coerce")
+    token = match.group(1)
+    if len(token) == 8:
+        parsed = pd.to_datetime(token, format="%Y%m%d", errors="coerce")
     else:
-        parsed = pd.to_datetime(date_token, format="%y%m%d", errors="coerce")
+        parsed = pd.to_datetime(token, format="%y%m%d", errors="coerce")
 
     if pd.isna(parsed):
         return None
     return parsed.normalize()
 
 
-def to_datetime_series(series: pd.Series | None) -> pd.Series:
+def to_datetime_series(series: pd.Series | pd.DataFrame | None) -> pd.Series:
     if series is None:
         return pd.Series(dtype="datetime64[ns]")
-    return parse_flexible_date_series(series)
+    return parse_flexible_date_series(ensure_series(series))
 
 
-def to_numeric_series(series: pd.Series | None) -> pd.Series:
+def to_numeric_series(series: pd.Series | pd.DataFrame | None) -> pd.Series:
     if series is None:
         return pd.Series(dtype="float64")
-    cleaned = (
+
+    series = ensure_series(series)
+    text = (
         series.astype(str)
-        .str.strip()
-        .replace({"": pd.NA, "nan": pd.NA, "None": pd.NA, "-": pd.NA})
         .str.replace(",", "", regex=False)
         .str.replace("₩", "", regex=False)
+        .str.replace("￦", "", regex=False)
         .str.replace("원", "", regex=False)
         .str.replace("%", "", regex=False)
+        .str.strip()
+        .replace({"": pd.NA, "nan": pd.NA, "None": pd.NA})
         .str.replace(r"[^\d\.\-]", "", regex=True)
     )
-    return pd.to_numeric(cleaned, errors="coerce")
+    return pd.to_numeric(text, errors="coerce")
 
 
-def get_series(df: pd.DataFrame, column: str) -> pd.Series:
-    if column in df.columns:
-        return df[column]
-    return pd.Series([""] * len(df), index=df.index)
+def get_series_by_alias(df: pd.DataFrame, aliases: list[str]) -> pd.Series:
+    if df.empty:
+        return pd.Series(dtype="object")
+
+    normalized_aliases = {sanitize_column_name(alias) for alias in aliases}
+    for column in df.columns:
+        if sanitize_column_name(column) in normalized_aliases:
+            return ensure_series(df[column])
+    return pd.Series([""] * len(df), index=df.index, dtype="object")
 
 
-def parse_flexible_date_series(series: pd.Series) -> pd.Series:
+def get_link_series(df: pd.DataFrame) -> pd.Series:
+    candidates = ["링크", "url", "주소", "게시링크", "콘텐츠링크"]
+    series = get_series_by_alias(df, candidates)
+    if series.map(clean_text).ne("").any():
+        return series
+
+    for column in df.columns:
+        if clean_text(column).endswith("링크"):
+            return ensure_series(df[column])
+    return pd.Series([""] * len(df), index=df.index, dtype="object")
+
+
+def first_non_empty_series(*series_list: pd.Series | pd.DataFrame | None) -> pd.Series:
+    prepared: list[pd.Series] = []
+    for series in series_list:
+        if series is not None:
+            prepared.append(ensure_series(series))
+
+    if not prepared:
+        return pd.Series(dtype="object")
+
+    result = prepared[0].copy()
+    for candidate in prepared[1:]:
+        mask = result.map(clean_text).eq("")
+        result.loc[mask] = candidate.loc[mask]
+    return result
+
+
+def parse_flexible_date_series(series: pd.Series | pd.DataFrame) -> pd.Series:
+    series = ensure_series(series)
     text = (
         series.astype(str)
         .str.strip()
@@ -699,16 +727,22 @@ def parse_flexible_date_series(series: pd.Series) -> pd.Series:
     )
 
     parsed = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
-    formats = ["%Y-%m-%d", "%y-%m-%d", "%Y%m%d", "%y%m%d"]
-
-    for fmt in formats:
+    for date_format in ["%Y-%m-%d", "%y-%m-%d", "%Y%m%d", "%y%m%d"]:
         mask = parsed.isna() & normalized.notna()
         if not mask.any():
             break
-        parsed.loc[mask] = pd.to_datetime(normalized.loc[mask], format=fmt, errors="coerce")
+        parsed.loc[mask] = pd.to_datetime(normalized.loc[mask], format=date_format, errors="coerce")
 
     remaining = parsed.isna() & normalized.notna()
     if remaining.any():
         parsed.loc[remaining] = pd.to_datetime(normalized.loc[remaining], errors="coerce")
 
     return parsed
+
+
+def ensure_series(value: pd.Series | pd.DataFrame) -> pd.Series:
+    if isinstance(value, pd.DataFrame):
+        if value.shape[1] == 0:
+            return pd.Series([""] * len(value), index=value.index, dtype="object")
+        return value.iloc[:, 0]
+    return value
