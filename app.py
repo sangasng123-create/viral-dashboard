@@ -70,76 +70,76 @@ DARK_CSS = """
     .hero-shell {
         background: linear-gradient(180deg, rgba(14, 19, 33, 0.96) 0%, rgba(16, 24, 40, 0.96) 100%);
         border: 1px solid var(--line);
-        border-radius: 30px;
-        padding: 1.35rem 1.45rem 1.15rem 1.45rem;
-        margin-bottom: 1.25rem;
-        box-shadow: 0 28px 70px rgba(2, 6, 23, 0.26);
+        border-radius: 24px;
+        padding: 1.05rem 1.15rem 1rem 1.15rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 20px 52px rgba(2, 6, 23, 0.22);
     }
     .hero-top {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 1.5rem;
+        align-items: center;
+        gap: 1rem;
     }
     .hero-title {
-        font-size: 2.05rem;
+        font-size: 1.75rem;
         font-weight: 800;
         letter-spacing: -0.03em;
-        margin-bottom: 0.25rem;
+        margin-bottom: 0.15rem;
     }
     .hero-subtitle {
         color: var(--text-soft);
-        font-size: 0.98rem;
-        line-height: 1.6;
-        max-width: 780px;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        max-width: 760px;
     }
     .hero-status {
-        min-width: 230px;
-        background: linear-gradient(180deg, rgba(124, 92, 255, 0.20) 0%, rgba(124, 92, 255, 0.10) 100%);
-        border: 1px solid rgba(124, 92, 255, 0.22);
-        border-radius: 20px;
-        padding: 0.95rem 1rem;
+        min-width: 190px;
+        background: rgba(124, 92, 255, 0.16);
+        border: 1px solid rgba(124, 92, 255, 0.20);
+        border-radius: 16px;
+        padding: 0.75rem 0.85rem;
     }
     .hero-status-label {
         color: #c5bcff;
-        font-size: 0.76rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.2rem;
     }
     .hero-status-value {
         color: white;
         font-weight: 800;
-        font-size: 1.4rem;
+        font-size: 1.2rem;
         letter-spacing: -0.03em;
     }
     .hero-status-sub {
         color: #c9d3e5;
-        font-size: 0.8rem;
-        margin-top: 0.2rem;
+        font-size: 0.74rem;
+        margin-top: 0.1rem;
     }
     .hero-badges {
         display: flex;
         flex-wrap: wrap;
         gap: 0.6rem;
-        margin-top: 1rem;
+        margin-top: 0.75rem;
     }
     .badge {
         display: inline-flex;
         align-items: center;
         gap: 0.4rem;
-        padding: 0.55rem 0.82rem;
+        padding: 0.45rem 0.72rem;
         border-radius: 999px;
         background: rgba(23, 32, 53, 0.95);
         border: 1px solid rgba(148, 163, 184, 0.15);
         color: #dee6f3;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
     }
     .section-title {
-        font-size: 1.55rem;
+        font-size: 1.4rem;
         font-weight: 800;
         letter-spacing: -0.03em;
-        margin: 1.4rem 0 0.85rem 0;
+        margin: 1.1rem 0 0.7rem 0;
         color: var(--text-main);
     }
     .section-caption {
@@ -150,25 +150,102 @@ DARK_CSS = """
     div[data-testid="stMetric"] {
         background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
         border: 1px solid var(--line);
-        border-radius: 22px;
-        padding: 16px 18px 14px 18px;
-        box-shadow: 0 14px 36px rgba(2, 6, 23, 0.18);
+        border-radius: 18px;
+        padding: 14px 16px 12px 16px;
+        box-shadow: 0 10px 28px rgba(2, 6, 23, 0.14);
     }
     div[data-testid="stMetric"] label {
         color: #98a4bc;
         font-weight: 600;
-        font-size: 0.82rem;
+        font-size: 0.78rem;
         letter-spacing: 0.01em;
     }
     div[data-testid="stMetricValue"] {
         color: white;
         font-weight: 800;
         letter-spacing: -0.03em;
+        font-size: 1.05rem;
     }
     .metric-note {
         color: var(--text-dim);
-        margin: 0.55rem 0 1rem 0;
-        font-size: 0.88rem;
+        margin: 0.45rem 0 0.8rem 0;
+        font-size: 0.82rem;
+    }
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 0.9rem;
+    }
+    .kpi-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        padding: 1rem 1rem 0.95rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
+        min-height: 132px;
+    }
+    .kpi-card::after {
+        content: "";
+        position: absolute;
+        width: 120px;
+        height: 120px;
+        right: -36px;
+        top: -42px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.10);
+        filter: blur(2px);
+    }
+    .kpi-card.primary-a {
+        background: linear-gradient(135deg, #5b63ff 0%, #6f7cff 56%, #8194ff 100%);
+    }
+    .kpi-card.primary-b {
+        background: linear-gradient(135deg, #1f6fff 0%, #3d84ff 58%, #65a0ff 100%);
+    }
+    .kpi-card.primary-c {
+        background: linear-gradient(135deg, #0f9f7a 0%, #16b38a 58%, #31c99d 100%);
+    }
+    .kpi-card.primary-d {
+        background: linear-gradient(135deg, #f59e0b 0%, #f7b731 56%, #f8ca62 100%);
+        color: #1f2937;
+    }
+    .kpi-card.secondary {
+        background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
+        border: 1px solid var(--line);
+        min-height: 112px;
+    }
+    .kpi-card.secondary::after {
+        background: rgba(124, 92, 255, 0.10);
+    }
+    .kpi-label {
+        position: relative;
+        z-index: 1;
+        font-size: 0.8rem;
+        font-weight: 700;
+        opacity: 0.88;
+        letter-spacing: 0.01em;
+        margin-bottom: 0.55rem;
+    }
+    .kpi-value {
+        position: relative;
+        z-index: 1;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.05;
+        margin-bottom: 0.45rem;
+    }
+    .kpi-card.primary-d .kpi-label,
+    .kpi-card.primary-d .kpi-value,
+    .kpi-card.primary-d .kpi-meta {
+        color: #172033;
+    }
+    .kpi-meta {
+        position: relative;
+        z-index: 1;
+        font-size: 0.76rem;
+        opacity: 0.82;
     }
     .metric-grid-gap {
         margin-top: 0.55rem;
@@ -370,25 +447,17 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
 def render_kpi_section(df: pd.DataFrame) -> None:
     st.markdown('<div class="section-title">핵심 KPI</div>', unsafe_allow_html=True)
     primary_metrics, secondary_metrics = build_kpis(df)
-
-    primary_left, primary_right = st.columns(2)
-    with primary_left:
-        st.metric(primary_metrics[0]["label"], primary_metrics[0]["value"])
-    with primary_right:
-        st.metric(primary_metrics[1]["label"], primary_metrics[1]["value"])
-
-    secondary_left, secondary_right = st.columns(2)
-    with secondary_left:
-        st.metric(primary_metrics[2]["label"], primary_metrics[2]["value"])
-    with secondary_right:
-        st.metric(primary_metrics[3]["label"], primary_metrics[3]["value"])
+    primary_classes = ["primary-a", "primary-b", "primary-c", "primary-d"]
+    primary_columns = st.columns(4)
+    for column, metric, card_class in zip(primary_columns, primary_metrics, primary_classes, strict=False):
+        with column:
+            st.markdown(render_kpi_card(metric, card_class, "핵심 지표"), unsafe_allow_html=True)
 
     st.markdown('<div class="metric-note">운영 판단에 바로 쓰는 핵심 지표를 먼저 배치했습니다.</div>', unsafe_allow_html=True)
-
-    compact_columns = st.columns(4)
-    for column, metric in zip(compact_columns, secondary_metrics, strict=False):
+    secondary_columns = st.columns(4)
+    for column, metric in zip(secondary_columns, secondary_metrics, strict=False):
         with column:
-            st.metric(metric["label"], metric["value"])
+            st.markdown(render_kpi_card(metric, "secondary", "운영 보조 지표"), unsafe_allow_html=True)
 
 
 def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
@@ -411,6 +480,16 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
         {"label": "클릭수", "value": format_number(df["page_count"].fillna(0).sum())},
     ]
     return primary, secondary
+
+
+def render_kpi_card(metric: dict[str, str], card_class: str, meta_text: str) -> str:
+    return f"""
+    <div class="kpi-card {card_class}">
+        <div class="kpi-label">{metric["label"]}</div>
+        <div class="kpi-value">{metric["value"]}</div>
+        <div class="kpi-meta">{meta_text}</div>
+    </div>
+    """
 
 
 def render_chart_section(df: pd.DataFrame) -> None:
