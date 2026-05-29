@@ -26,22 +26,17 @@ DARK_CSS = """
         --bg-grad-bottom: #0f172a;
         --panel: rgba(18, 24, 39, 0.92);
         --panel-soft: rgba(20, 28, 46, 0.90);
-        --panel-elevated: rgba(14, 19, 33, 0.98);
         --line: rgba(148, 163, 184, 0.14);
         --line-strong: rgba(148, 163, 184, 0.22);
         --text-main: #f8fafc;
         --text-soft: #aeb8cc;
         --text-dim: #7f8aa3;
-        --accent: #7c5cff;
-        --accent-soft: rgba(124, 92, 255, 0.16);
-        --accent-2: #22c55e;
-        --accent-3: #f59e0b;
     }
     .stApp {
         background:
             radial-gradient(circle at 12% 0%, rgba(124, 92, 255, 0.16), transparent 24%),
             radial-gradient(circle at 100% 20%, rgba(34, 197, 94, 0.08), transparent 18%),
-            linear-gradient(180deg, var(--bg-grad-top) 0%, var(--bg-grad-bottom) 46%, var(--bg-main) 100%);
+            linear-gradient(180deg, #121828 0%, #0f172a 46%, #0b1020 100%);
         color: var(--text-main);
     }
     .block-container {
@@ -144,38 +139,13 @@ DARK_CSS = """
     }
     .section-caption {
         color: var(--text-dim);
-        margin-top: -0.15rem;
-        margin-bottom: 0.9rem;
-    }
-    div[data-testid="stMetric"] {
-        background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 14px 16px 12px 16px;
-        box-shadow: 0 10px 28px rgba(2, 6, 23, 0.14);
-    }
-    div[data-testid="stMetric"] label {
-        color: #98a4bc;
-        font-weight: 600;
-        font-size: 0.78rem;
-        letter-spacing: 0.01em;
-    }
-    div[data-testid="stMetricValue"] {
-        color: white;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        font-size: 1.05rem;
+        margin-top: -0.1rem;
+        margin-bottom: 0.8rem;
     }
     .metric-note {
         color: var(--text-dim);
         margin: 0.45rem 0 0.8rem 0;
         font-size: 0.82rem;
-    }
-    .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 1rem;
-        margin-bottom: 0.9rem;
     }
     .kpi-card {
         position: relative;
@@ -185,6 +155,7 @@ DARK_CSS = """
         border: 1px solid rgba(255, 255, 255, 0.10);
         box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
         min-height: 132px;
+        margin-bottom: 0.8rem;
     }
     .kpi-card::after {
         content: "";
@@ -195,21 +166,16 @@ DARK_CSS = """
         top: -42px;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.10);
-        filter: blur(2px);
     }
-    .kpi-card.primary-a {
-        background: linear-gradient(135deg, #5b63ff 0%, #6f7cff 56%, #8194ff 100%);
-    }
-    .kpi-card.primary-b {
-        background: linear-gradient(135deg, #1f6fff 0%, #3d84ff 58%, #65a0ff 100%);
-    }
-    .kpi-card.primary-c {
-        background: linear-gradient(135deg, #0f9f7a 0%, #16b38a 58%, #31c99d 100%);
-    }
+    .kpi-card.primary-a { background: linear-gradient(135deg, #5b63ff 0%, #6f7cff 56%, #8194ff 100%); }
+    .kpi-card.primary-b { background: linear-gradient(135deg, #1f6fff 0%, #3d84ff 58%, #65a0ff 100%); }
+    .kpi-card.primary-c { background: linear-gradient(135deg, #0f9f7a 0%, #16b38a 58%, #31c99d 100%); }
     .kpi-card.primary-d {
         background: linear-gradient(135deg, #f59e0b 0%, #f7b731 56%, #f8ca62 100%);
-        color: #1f2937;
+        color: #172033;
     }
+    .kpi-card.primary-d .kpi-label,
+    .kpi-card.primary-d .kpi-value { color: #172033; }
     .kpi-card.secondary {
         background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
         border: 1px solid var(--line);
@@ -223,7 +189,7 @@ DARK_CSS = """
         z-index: 1;
         font-size: 0.8rem;
         font-weight: 700;
-        opacity: 0.88;
+        opacity: 0.90;
         letter-spacing: 0.01em;
         margin-bottom: 0.55rem;
     }
@@ -234,21 +200,6 @@ DARK_CSS = """
         font-weight: 800;
         letter-spacing: -0.04em;
         line-height: 1.05;
-        margin-bottom: 0.45rem;
-    }
-    .kpi-card.primary-d .kpi-label,
-    .kpi-card.primary-d .kpi-value,
-    .kpi-card.primary-d .kpi-meta {
-        color: #172033;
-    }
-    .kpi-meta {
-        position: relative;
-        z-index: 1;
-        font-size: 0.76rem;
-        opacity: 0.82;
-    }
-    .metric-grid-gap {
-        margin-top: 0.55rem;
     }
     .chart-card {
         background: linear-gradient(180deg, rgba(14, 19, 33, 0.98) 0%, rgba(18, 26, 42, 0.98) 100%);
@@ -263,13 +214,6 @@ DARK_CSS = """
         border-radius: 22px;
         overflow: hidden;
         box-shadow: 0 14px 32px rgba(2, 6, 23, 0.14);
-    }
-    h2, h3 {
-        color: var(--text-main);
-        letter-spacing: -0.02em;
-    }
-    .stCaption {
-        color: var(--text-dim);
     }
     .stButton button {
         background: linear-gradient(180deg, #7c5cff 0%, #5d3df5 100%);
@@ -317,6 +261,7 @@ def get_dashboard_data() -> dict[str, pd.DataFrame]:
 
 
 def main() -> None:
+    st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
     st.markdown(DARK_CSS, unsafe_allow_html=True)
 
     if st.sidebar.button("원본 다시 불러오기", use_container_width=True):
@@ -369,14 +314,12 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
             <div class="hero-top">
                 <div>
                     <div class="hero-title">바이럴 운영 관리사 대시보드</div>
-                    <div class="hero-subtitle">
-                        공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 운영형 Streamlit 대시보드
-                    </div>
+                    <div class="hero-subtitle">공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 운영형 Streamlit 대시보드</div>
                 </div>
                 <div class="hero-status">
-                    <div class="hero-status-label">Match Coverage</div>
+                    <div class="hero-status-label">매칭률</div>
                     <div class="hero-status-value">{coverage:.1f}%</div>
-                    <div class="hero-status-sub">{matched_count}/{total_count}개 매칭</div>
+                    <div class="hero-status-sub">{matched_count}/{total_count}건</div>
                 </div>
             </div>
             <div class="hero-badges">
@@ -421,7 +364,6 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
     selected_transfers = st.sidebar.multiselect("이체 여부", transfer_options, default=transfer_options)
 
     filtered = df.copy()
-
     if len(date_range) == 2:
         start_date, end_date = map(pd.Timestamp, date_range)
         end_dt = end_date + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
@@ -447,17 +389,19 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
 def render_kpi_section(df: pd.DataFrame) -> None:
     st.markdown('<div class="section-title">핵심 KPI</div>', unsafe_allow_html=True)
     primary_metrics, secondary_metrics = build_kpis(df)
+
     primary_classes = ["primary-a", "primary-b", "primary-c", "primary-d"]
     primary_columns = st.columns(4)
     for column, metric, card_class in zip(primary_columns, primary_metrics, primary_classes, strict=False):
         with column:
-            st.markdown(render_kpi_card(metric, card_class, "핵심 지표"), unsafe_allow_html=True)
+            st.markdown(render_kpi_card(metric, card_class), unsafe_allow_html=True)
 
-    st.markdown('<div class="metric-note">운영 판단에 바로 쓰는 핵심 지표를 먼저 배치했습니다.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="metric-note">핵심 지표를 먼저 배치했습니다.</div>', unsafe_allow_html=True)
+
     secondary_columns = st.columns(4)
     for column, metric in zip(secondary_columns, secondary_metrics, strict=False):
         with column:
-            st.markdown(render_kpi_card(metric, "secondary", "운영 보조 지표"), unsafe_allow_html=True)
+            st.markdown(render_kpi_card(metric, "secondary"), unsafe_allow_html=True)
 
 
 def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
@@ -472,7 +416,6 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
         {"label": "ROAS", "value": format_percent(roas)},
         {"label": "결제수", "value": format_number(total_payment_count)},
     ]
-
     secondary = [
         {"label": "총 작업 수", "value": format_number(len(df))},
         {"label": "고객수", "value": format_number(df["customer_count"].fillna(0).sum())},
@@ -482,12 +425,11 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
     return primary, secondary
 
 
-def render_kpi_card(metric: dict[str, str], card_class: str, meta_text: str) -> str:
+def render_kpi_card(metric: dict[str, str], card_class: str) -> str:
     return f"""
     <div class="kpi-card {card_class}">
         <div class="kpi-label">{metric["label"]}</div>
         <div class="kpi-value">{metric["value"]}</div>
-        <div class="kpi-meta">{meta_text}</div>
     </div>
     """
 
@@ -503,15 +445,13 @@ def render_chart_section(df: pd.DataFrame) -> None:
 
     top_left, top_right = st.columns(2)
     with top_left:
-        with st.container(border=False):
-            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-            st.plotly_chart(build_platform_performance_chart(platform_perf), use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(build_platform_performance_chart(platform_perf), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     with top_right:
-        with st.container(border=False):
-            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-            st.plotly_chart(build_daily_trend_chart(daily_trend), use_container_width=True)
-            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        st.plotly_chart(build_daily_trend_chart(daily_trend), use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     middle_left, middle_right = st.columns(2)
     with middle_left:
@@ -570,11 +510,7 @@ def build_time_series(df: pd.DataFrame, frequency: str) -> pd.DataFrame:
     if dated.empty:
         return pd.DataFrame(columns=["period", "inflow_count", "payment_count", "cost", "payment_amount"])
 
-    if frequency == "D":
-        dated["period"] = dated["date"].dt.normalize()
-    else:
-        dated["period"] = dated["date"].dt.to_period(frequency).dt.to_timestamp()
-
+    dated["period"] = dated["date"].dt.normalize() if frequency == "D" else dated["date"].dt.to_period(frequency).dt.to_timestamp()
     return (
         dated.groupby("period", as_index=False)[["inflow_count", "payment_count", "cost", "payment_amount"]]
         .sum()
@@ -606,9 +542,7 @@ def build_platform_performance_chart(df: pd.DataFrame):
         },
         title="플랫폼별 투자 대비 매출",
     )
-    fig.update_traces(
-        hovertemplate="플랫폼=%{x}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>"
-    )
+    fig.update_traces(hovertemplate="플랫폼=%{x}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>")
     apply_currency_yaxis(fig)
     apply_common_layout(fig)
     return fig
@@ -638,9 +572,7 @@ def build_daily_trend_chart(df: pd.DataFrame):
         },
         title="일별 유입과 결제 흐름",
     )
-    fig.update_traces(
-        hovertemplate="일자=%{x|%Y-%m-%d}<br>지표=%{fullData.name}<br>수치=%{y:,.0f}<extra></extra>"
-    )
+    fig.update_traces(hovertemplate="일자=%{x|%Y-%m-%d}<br>지표=%{fullData.name}<br>수치=%{y:,.0f}<extra></extra>")
     apply_count_yaxis(fig)
     apply_common_layout(fig)
     return fig
@@ -670,9 +602,7 @@ def build_monthly_trend_chart(df: pd.DataFrame):
         },
         title="월별 집행 대비 회수",
     )
-    fig.update_traces(
-        hovertemplate="월=%{x|%Y-%m}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>"
-    )
+    fig.update_traces(hovertemplate="월=%{x|%Y-%m}<br>지표=%{fullData.name}<br>금액=%{y:,.0f}원<extra></extra>")
     apply_currency_yaxis(fig)
     apply_common_layout(fig)
     return fig
@@ -694,12 +624,7 @@ def build_platform_roas_scatter(df: pd.DataFrame):
     )
     fig.update_traces(
         textposition="top center",
-        hovertemplate=(
-            "플랫폼=%{text}<br>"
-            "유입수=%{x:,.0f}<br>"
-            "ROAS=%{y:.1f}%<br>"
-            "결제금액=%{customdata[0]:,.0f}원<extra></extra>"
-        ),
+        hovertemplate="플랫폼=%{text}<br>유입수=%{x:,.0f}<br>ROAS=%{y:.1f}%<br>결제금액=%{customdata[0]:,.0f}원<extra></extra>",
     )
     fig.update_xaxes(title="유입수", tickformat=",.0f")
     fig.update_yaxes(title="ROAS (%)", ticksuffix="%", tickformat=",.1f")
@@ -732,9 +657,7 @@ def build_worker_performance_chart(df: pd.DataFrame):
         },
         title="상위 작업자 집행 대비 매출",
     )
-    fig.update_traces(
-        hovertemplate="작업자=%{y}<br>지표=%{fullData.name}<br>금액=%{x:,.0f}원<extra></extra>"
-    )
+    fig.update_traces(hovertemplate="작업자=%{y}<br>지표=%{fullData.name}<br>금액=%{x:,.0f}원<extra></extra>")
     fig.update_xaxes(title="금액")
     apply_currency_xaxis(fig)
     apply_common_layout(fig)
@@ -757,10 +680,7 @@ def build_payment_share_donut(df: pd.DataFrame):
         title="플랫폼별 결제금액 비중",
         color_discrete_sequence=["#8f7dff", "#ffb347", "#46d39a", "#ff7a59", "#8aa4ff", "#f472b6"],
     )
-    fig.update_traces(
-        textinfo="percent+label",
-        hovertemplate="플랫폼=%{label}<br>결제금액=%{value:,.0f}원<extra></extra>",
-    )
+    fig.update_traces(textinfo="percent+label", hovertemplate="플랫폼=%{label}<br>결제금액=%{value:,.0f}원<extra></extra>")
     apply_common_layout(fig)
     return fig
 
@@ -770,67 +690,45 @@ def render_tables(df: pd.DataFrame) -> None:
     st.markdown('<div class="section-caption">실행 결과와 미매칭 사유를 한 번에 확인할 수 있게 정리했습니다.</div>', unsafe_allow_html=True)
 
     detail_columns = [
-        "date",
-        "platform",
-        "worker",
-        "product_name",
-        "manager",
-        "transfer_status",
-        "cost",
-        "keyword",
-        "customer_count",
-        "inflow_count",
-        "page_count",
-        "payment_count",
-        "payment_amount",
-        "match_status",
+        "date", "platform", "worker", "product_name", "manager", "transfer_status",
+        "cost", "keyword", "customer_count", "inflow_count", "page_count",
+        "payment_count", "payment_amount", "match_status",
     ]
     detail_df = df.reindex(columns=detail_columns).copy()
-    detail_df = detail_df.rename(
-        columns={
-            "date": "일자",
-            "platform": "플랫폼",
-            "worker": "작업자",
-            "product_name": "상품명",
-            "manager": "담당자",
-            "transfer_status": "이체여부",
-            "cost": "비용",
-            "keyword": "키워드",
-            "customer_count": "고객수",
-            "inflow_count": "유입수",
-            "page_count": "클릭수",
-            "payment_count": "결제수",
-            "payment_amount": "결제금액",
-            "match_status": "매칭상태",
-        }
-    )
-    if "일자" in detail_df.columns:
-        detail_df["일자"] = pd.to_datetime(detail_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d")
-        detail_df["일자"] = detail_df["일자"].fillna("")
+    detail_df = detail_df.rename(columns={
+        "date": "일자",
+        "platform": "플랫폼",
+        "worker": "작업자",
+        "product_name": "상품명",
+        "manager": "담당자",
+        "transfer_status": "이체여부",
+        "cost": "비용",
+        "keyword": "키워드",
+        "customer_count": "고객수",
+        "inflow_count": "유입수",
+        "page_count": "클릭수",
+        "payment_count": "결제수",
+        "payment_amount": "결제금액",
+        "match_status": "매칭상태",
+    })
+    detail_df["일자"] = pd.to_datetime(detail_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
     for currency_column in ["비용", "결제금액"]:
-        if currency_column in detail_df.columns:
-            detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
-
+        detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
     unmatched_df = df.loc[
         df["match_status"] == "미매칭",
         ["date", "platform", "worker", "product_name", "keyword", "unmatched_reason"],
     ].copy()
-    unmatched_df = unmatched_df.rename(
-        columns={
-            "date": "일자",
-            "platform": "플랫폼",
-            "worker": "작업자",
-            "product_name": "상품명",
-            "keyword": "키워드",
-            "unmatched_reason": "미매칭 사유",
-        }
-    )
-    if "일자" in unmatched_df.columns:
-        unmatched_df["일자"] = pd.to_datetime(unmatched_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d")
-        unmatched_df["일자"] = unmatched_df["일자"].fillna("")
-
+    unmatched_df = unmatched_df.rename(columns={
+        "date": "일자",
+        "platform": "플랫폼",
+        "worker": "작업자",
+        "product_name": "상품명",
+        "keyword": "키워드",
+        "unmatched_reason": "미매칭 사유",
+    })
+    unmatched_df["일자"] = pd.to_datetime(unmatched_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
     st.markdown('<div class="section-title" style="font-size:1.2rem; margin-top:1.1rem;">매칭 실패 리스트</div>', unsafe_allow_html=True)
     st.dataframe(unmatched_df, use_container_width=True, hide_index=True)
 
@@ -864,10 +762,7 @@ def build_performance_kpis(df: pd.DataFrame) -> list[dict[str, str]]:
     ]
 
 
-def filter_performance_by_matched_rows(
-    matched_df: pd.DataFrame,
-    performance_df: pd.DataFrame,
-) -> pd.DataFrame:
+def filter_performance_by_matched_rows(matched_df: pd.DataFrame, performance_df: pd.DataFrame) -> pd.DataFrame:
     if matched_df.empty or performance_df.empty:
         return performance_df.iloc[0:0].copy()
 
@@ -937,17 +832,7 @@ def empty_figure(title: str):
     fig.update_layout(
         xaxis=dict(visible=False),
         yaxis=dict(visible=False),
-        annotations=[
-            dict(
-                text="표시할 데이터가 없습니다.",
-                showarrow=False,
-                x=0.5,
-                y=0.5,
-                xref="paper",
-                yref="paper",
-                font=dict(color="#94a3b8", size=14),
-            )
-        ],
+        annotations=[dict(text="표시할 데이터가 없습니다.", showarrow=False, x=0.5, y=0.5, xref="paper", yref="paper", font=dict(color="#94a3b8", size=14))],
     )
     apply_common_layout(fig)
     return fig
