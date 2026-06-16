@@ -14,10 +14,10 @@ SPREADSHEET_ID = "1NeeQNSiG9D9u5U290vyW_LKIn9Siyd9EinwZaUXzIiM"
 SPREADSHEET_URL = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/edit"
 
 PAID_SHEETS = {
-    "블로그": {"gid": "198507325", "sheet_name": "(DB)블로그(유료건 기준)"},
-    "인스타그램": {"gid": "1485104371", "sheet_name": "(DB)인스타그램(유료건 기준)"},
-    "유튜브": {"gid": "534722161", "sheet_name": "(DB)유튜브(유료건 기준)"},
-    "X": {"gid": "1433936261", "sheet_name": "(DB)X(유료건 기준)"},
+    "블로그": {"gid": "198507325", "sheet_name": "(DB)블로그(완료건 기준)"},
+    "인스타그램": {"gid": "1485104371", "sheet_name": "(DB)인스타그램(완료건 기준)"},
+    "유튜브": {"gid": "534722161", "sheet_name": "(DB)유튜브(완료건 기준)"},
+    "X": {"gid": "1433936261", "sheet_name": "(DB)X(완료건 기준)"},
     "커뮤니티": {"gid": "1056422214", "sheet_name": "(DB)커뮤니티"},
     "브랜드커넥트": {"gid": "255349713", "sheet_name": "(DB)브랜드커넥트"},
 }
