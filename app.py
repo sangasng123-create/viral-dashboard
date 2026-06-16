@@ -266,7 +266,10 @@ def check_password() -> bool:
     if st.session_state.get("password_ok"):
         return True
 
-    expected = st.secrets.get("app_password", "")
+    try:
+        expected = st.secrets.get("app_password", "")
+    except Exception:
+        expected = ""
     if not expected:
         st.error(
             "로그인 비밀번호가 설정되지 않았습니다. "
@@ -303,16 +306,12 @@ def main() -> None:
 
     if st.sidebar.button("원본 다시 불러오기", use_container_width=True):
         get_dashboard_data.clear()
-        st.session_state.pop("dashboard_data", None)
 
-    if "dashboard_data" not in st.session_state:
-        try:
-            st.session_state["dashboard_data"] = get_dashboard_data()
-        except Exception as exc:
-            st.error(f"대시보드 로딩 실패: {exc}")
-            return
-
-    data = st.session_state["dashboard_data"]
+    try:
+        data = get_dashboard_data()
+    except Exception as exc:
+        st.error(f"대시보드 로딩 실패: {exc}")
+        return
     matched_df = ensure_table_columns(data["matched"].copy())
     performance_df = data["performance"].copy()
     source_meta = data["source_path"].iloc[0]
@@ -405,8 +404,7 @@ def render_filters(df: pd.DataFrame) -> pd.DataFrame:
         start_date, end_date = map(pd.Timestamp, date_range)
         end_dt = end_date + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
         filtered = filtered[
-            filtered["date"].isna()
-            | ((filtered["date"] >= start_date) & (filtered["date"] <= end_dt))
+            (filtered["date"] >= start_date) & (filtered["date"] <= end_dt)
         ]
 
     if selected_platforms:
