@@ -443,19 +443,27 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
     total_cost = float(df["cost"].fillna(0).sum())
     total_payment_amount = float(df["payment_amount"].fillna(0).sum())
     total_payment_count = float(df["payment_count"].fillna(0).sum())
-    roas = (total_payment_amount / total_cost * 100) if total_cost else 0
+
+    # ROAS는 매칭된 작업만으로 계산 (미매칭은 매출 0이라 효율을 왜곡하므로 제외)
+    if "is_matched" in df.columns:
+        matched_only = df[df["is_matched"].fillna(False).astype(bool)]
+    else:
+        matched_only = df.iloc[0:0]
+    matched_cost = float(matched_only["cost"].fillna(0).sum())
+    matched_payment_amount = float(matched_only["payment_amount"].fillna(0).sum())
+    roas_matched = (matched_payment_amount / matched_cost * 100) if matched_cost else 0
 
     primary = [
-        {"label": "총 비용", "value": format_currency(total_cost)},
-        {"label": "결제금액", "value": format_currency(total_payment_amount)},
-        {"label": "ROAS", "value": format_percent(roas)},
-        {"label": "결제수", "value": format_number(total_payment_count)},
-    ]
-    secondary = [
-        {"label": "총 작업 수", "value": format_number(len(df))},
         {"label": "고객수", "value": format_number(df["customer_count"].fillna(0).sum())},
         {"label": "유입수", "value": format_number(df["inflow_count"].fillna(0).sum())},
         {"label": "클릭수", "value": format_number(df["page_count"].fillna(0).sum())},
+        {"label": "ROAS (매칭분)", "value": format_percent(roas_matched)},
+    ]
+    secondary = [
+        {"label": "총 비용", "value": format_currency(total_cost)},
+        {"label": "결제금액", "value": format_currency(total_payment_amount)},
+        {"label": "결제수", "value": format_number(total_payment_count)},
+        {"label": "총 작업 수", "value": format_number(len(df))},
     ]
     return primary, secondary
 
