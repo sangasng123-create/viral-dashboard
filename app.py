@@ -255,6 +255,8 @@ DISPLAY_NAMES = {
     "roas": "ROAS",
 }
 
+BASELINE_INFLOW_UNIT_COST = 300
+
 
 @st.cache_data(show_spinner=False, ttl=300)
 def get_dashboard_data() -> dict[str, pd.DataFrame]:
@@ -425,8 +427,8 @@ def render_kpi_section(df: pd.DataFrame) -> None:
     st.markdown('<div class="section-title">핵심 KPI</div>', unsafe_allow_html=True)
     primary_metrics, secondary_metrics = build_kpis(df)
 
-    primary_classes = ["primary-a", "primary-b", "primary-c", "primary-d"]
-    primary_columns = st.columns(4)
+    primary_classes = ["primary-a", "primary-b", "primary-c", "primary-d", "primary-c"]
+    primary_columns = st.columns(len(primary_metrics))
     for column, metric, card_class in zip(primary_columns, primary_metrics, primary_classes, strict=False):
         with column:
             st.markdown(render_kpi_card(metric, card_class), unsafe_allow_html=True)
@@ -451,13 +453,16 @@ def build_kpis(df: pd.DataFrame) -> tuple[list[dict[str, str]], list[dict[str, s
         matched_only = df.iloc[0:0]
     matched_cost = float(matched_only["cost"].fillna(0).sum())
     matched_payment_amount = float(matched_only["payment_amount"].fillna(0).sum())
+    matched_inflow_count = float(matched_only["inflow_count"].fillna(0).sum())
     roas_matched = (matched_payment_amount / matched_cost * 100) if matched_cost else 0
+    inflow_efficiency_matched = calculate_inflow_efficiency(matched_cost, matched_inflow_count)
 
     primary = [
         {"label": "고객수", "value": format_number(df["customer_count"].fillna(0).sum())},
         {"label": "유입수", "value": format_number(df["inflow_count"].fillna(0).sum())},
         {"label": "클릭수", "value": format_number(df["page_count"].fillna(0).sum())},
         {"label": "ROAS (매칭분)", "value": format_percent(roas_matched)},
+        {"label": "비용대비유입효율률 (매칭분)", "value": format_percent(inflow_efficiency_matched)},
     ]
     secondary = [
         {"label": "총 비용", "value": format_currency(total_cost)},
@@ -721,12 +726,19 @@ def render_tables(df: pd.DataFrame) -> None:
     st.markdown('<div class="section-title">작업 리스트</div>', unsafe_allow_html=True)
     st.markdown('<div class="section-caption">실행 결과와 미매칭 사유를 한 번에 확인할 수 있게 정리했습니다.</div>', unsafe_allow_html=True)
 
+    table_source = df.copy()
+    worker_totals = table_source.groupby("worker", dropna=False)[["cost", "inflow_count"]].transform("sum")
+    table_source["worker_inflow_efficiency"] = calculate_inflow_efficiency(
+        worker_totals["cost"],
+        worker_totals["inflow_count"],
+    )
+
     detail_columns = [
         "date", "platform", "worker", "product_name", "manager", "transfer_status",
-        "cost", "keyword", "customer_count", "inflow_count", "page_count",
+        "cost", "worker_inflow_efficiency", "keyword", "customer_count", "inflow_count", "page_count",
         "payment_count", "payment_amount", "match_status",
     ]
-    detail_df = df.reindex(columns=detail_columns).copy()
+    detail_df = table_source.reindex(columns=detail_columns).copy()
     detail_df = detail_df.rename(columns={
         "date": "일자",
         "platform": "플랫폼",
@@ -735,6 +747,7 @@ def render_tables(df: pd.DataFrame) -> None:
         "manager": "담당자",
         "transfer_status": "이체여부",
         "cost": "비용",
+        "worker_inflow_efficiency": "작업자별 비용대비유입효율률",
         "keyword": "키워드",
         "customer_count": "고객수",
         "inflow_count": "유입수",
@@ -746,6 +759,7 @@ def render_tables(df: pd.DataFrame) -> None:
     detail_df["일자"] = pd.to_datetime(detail_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
     for currency_column in ["비용", "결제금액"]:
         detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
+    detail_df["작업자별 비용대비유입효율률"] = detail_df["작업자별 비용대비유입효율률"].fillna(0).map(format_percent)
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
     unmatched_df = df.loc[
@@ -819,6 +833,15 @@ def filter_performance_by_matched_rows(matched_df: pd.DataFrame, performance_df:
         axis=1,
     )
     return working.loc[working["match_key"].isin(keys)].copy()
+
+
+def calculate_inflow_efficiency(cost, inflow_count):
+    if not isinstance(cost, pd.Series):
+        return (BASELINE_INFLOW_UNIT_COST * inflow_count / cost * 100) if cost > 0 and inflow_count > 0 else 0
+
+    actual_unit_cost = cost / inflow_count
+    efficiency = BASELINE_INFLOW_UNIT_COST / actual_unit_cost * 100
+    return efficiency.where((cost > 0) & (inflow_count > 0), 0).fillna(0)
 
 
 def format_currency(value: float) -> str:
