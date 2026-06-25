@@ -728,6 +728,7 @@ def render_tables(df: pd.DataFrame) -> None:
 
     table_source = df.copy()
     worker_totals = table_source.groupby("worker", dropna=False)[["cost", "inflow_count"]].transform("sum")
+    table_source["worker_cpv"] = calculate_cpv(worker_totals["cost"], worker_totals["inflow_count"])
     table_source["worker_inflow_efficiency"] = calculate_inflow_efficiency(
         worker_totals["cost"],
         worker_totals["inflow_count"],
@@ -735,7 +736,7 @@ def render_tables(df: pd.DataFrame) -> None:
 
     detail_columns = [
         "date", "platform", "worker", "product_name", "manager", "transfer_status",
-        "cost", "worker_inflow_efficiency", "keyword", "customer_count", "inflow_count", "page_count",
+        "cost", "worker_cpv", "worker_inflow_efficiency", "keyword", "customer_count", "inflow_count", "page_count",
         "payment_count", "payment_amount", "match_status",
     ]
     detail_df = table_source.reindex(columns=detail_columns).copy()
@@ -747,6 +748,7 @@ def render_tables(df: pd.DataFrame) -> None:
         "manager": "담당자",
         "transfer_status": "이체여부",
         "cost": "비용",
+        "worker_cpv": "작업자별 CPV",
         "worker_inflow_efficiency": "작업자별 비용대비유입효율률",
         "keyword": "키워드",
         "customer_count": "고객수",
@@ -757,7 +759,7 @@ def render_tables(df: pd.DataFrame) -> None:
         "match_status": "매칭상태",
     })
     detail_df["일자"] = pd.to_datetime(detail_df["일자"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("")
-    for currency_column in ["비용", "결제금액"]:
+    for currency_column in ["비용", "작업자별 CPV", "결제금액"]:
         detail_df[currency_column] = detail_df[currency_column].fillna(0).map(format_currency)
     detail_df["작업자별 비용대비유입효율률"] = detail_df["작업자별 비용대비유입효율률"].fillna(0).map(format_percent)
     st.dataframe(detail_df, use_container_width=True, hide_index=True)
@@ -842,6 +844,14 @@ def calculate_inflow_efficiency(cost, inflow_count):
     actual_unit_cost = cost / inflow_count
     efficiency = BASELINE_INFLOW_UNIT_COST / actual_unit_cost * 100
     return efficiency.where((cost > 0) & (inflow_count > 0), 0).fillna(0)
+
+
+def calculate_cpv(cost, inflow_count):
+    if not isinstance(cost, pd.Series):
+        return (cost / inflow_count) if inflow_count > 0 else 0
+
+    cpv = cost / inflow_count
+    return cpv.where(inflow_count > 0, 0).fillna(0)
 
 
 def format_currency(value: float) -> str:
