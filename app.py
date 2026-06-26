@@ -560,7 +560,12 @@ def render_recent_four_week_summary(df: pd.DataFrame) -> None:
     for percent_column in ["ROAS", "비용대비유입효율률"]:
         display_df[percent_column] = display_df[percent_column].fillna(0).map(format_percent)
 
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    def highlight_total_row(row):
+        if row.name == len(display_df) - 1:
+            return ["background-color: #2f3f76; color: #ffffff; font-weight: 800;" for _ in row]
+        return ["" for _ in row]
+
+    st.dataframe(display_df.style.apply(highlight_total_row, axis=1), use_container_width=True, hide_index=True)
 
 
 def build_recent_four_week_summary(df: pd.DataFrame, start_date: pd.Timestamp, end_date: pd.Timestamp) -> pd.DataFrame:
