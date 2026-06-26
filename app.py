@@ -540,22 +540,23 @@ def render_recent_four_week_summary(df: pd.DataFrame) -> None:
 
     st.markdown('<div class="section-title" style="font-size:1.2rem; margin-top:0.7rem;">최근 4주 작업자별 성과 요약</div>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="section-caption">{start_date:%Y-%m-%d}부터 {today:%Y-%m-%d}까지의 바이럴 비용, 유입, 결제금액, 클릭, ROAS, 비용대비유입효율률입니다.</div>',
+        f'<div class="section-caption">{start_date:%Y-%m-%d}부터 {today:%Y-%m-%d}까지의 비용, 결제금액, 유입수, 클릭수, ROAS, 비용대비유입효율률입니다.</div>',
         unsafe_allow_html=True,
     )
 
     display_df = summary_df.rename(columns={
         "worker": "작업자",
-        "cost": "바이럴 비용",
-        "inflow_count": "유입",
+        "cost": "비용",
+        "inflow_count": "유입수",
         "payment_amount": "결제금액",
-        "page_count": "클릭",
+        "page_count": "클릭수",
         "roas": "ROAS",
         "inflow_efficiency": "비용대비유입효율률",
     })
-    for currency_column in ["바이럴 비용", "결제금액"]:
+    display_df = display_df[["작업자", "비용", "결제금액", "유입수", "클릭수", "ROAS", "비용대비유입효율률"]]
+    for currency_column in ["비용", "결제금액"]:
         display_df[currency_column] = display_df[currency_column].fillna(0).map(format_currency)
-    for count_column in ["유입", "클릭"]:
+    for count_column in ["유입수", "클릭수"]:
         display_df[count_column] = display_df[count_column].fillna(0).map(format_number)
     for percent_column in ["ROAS", "비용대비유입효율률"]:
         display_df[percent_column] = display_df[percent_column].fillna(0).map(format_percent)
