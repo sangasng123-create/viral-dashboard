@@ -22,22 +22,18 @@ st.set_page_config(
 DARK_CSS = """
 <style>
     :root {
-        --bg-main: #0b1020;
-        --bg-grad-top: #121828;
-        --bg-grad-bottom: #0f172a;
-        --panel: rgba(18, 24, 39, 0.92);
-        --panel-soft: rgba(20, 28, 46, 0.90);
-        --line: rgba(148, 163, 184, 0.14);
-        --line-strong: rgba(148, 163, 184, 0.22);
-        --text-main: #f8fafc;
-        --text-soft: #aeb8cc;
-        --text-dim: #7f8aa3;
+        --bg-main: #f6f8fb;
+        --panel: #ffffff;
+        --panel-soft: #f9fbff;
+        --line: rgba(15, 23, 42, 0.10);
+        --line-strong: rgba(37, 99, 235, 0.22);
+        --text-main: #172033;
+        --text-soft: #475569;
+        --text-dim: #64748b;
+        --accent: #2563eb;
     }
     .stApp {
-        background:
-            radial-gradient(circle at 12% 0%, rgba(124, 92, 255, 0.16), transparent 24%),
-            radial-gradient(circle at 100% 20%, rgba(34, 197, 94, 0.08), transparent 18%),
-            linear-gradient(180deg, #121828 0%, #0f172a 46%, #0b1020 100%);
+        background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 42%, #eef3f9 100%);
         color: var(--text-main);
     }
     .block-container {
@@ -46,30 +42,30 @@ DARK_CSS = """
         padding-bottom: 2.1rem;
     }
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, rgba(10, 14, 26, 0.98) 0%, rgba(15, 21, 36, 0.98) 100%);
-        border-right: 1px solid rgba(148, 163, 184, 0.10);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-right: 1px solid rgba(15, 23, 42, 0.10);
     }
     [data-testid="stSidebar"] * {
-        color: #dde5f1;
+        color: #172033;
     }
     [data-testid="stSidebar"] [data-baseweb="select"] > div,
     [data-testid="stSidebar"] .stDateInput > div > div {
-        background: rgba(17, 24, 39, 0.92);
+        background: #ffffff;
         border-color: var(--line-strong);
         border-radius: 14px;
     }
     [data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
-        background: rgba(124, 92, 255, 0.18);
-        border: 1px solid rgba(124, 92, 255, 0.30);
-        color: #f4f0ff;
+        background: rgba(37, 99, 235, 0.10);
+        border: 1px solid rgba(37, 99, 235, 0.20);
+        color: #1d4ed8;
     }
     .hero-shell {
-        background: linear-gradient(180deg, rgba(14, 19, 33, 0.96) 0%, rgba(16, 24, 40, 0.96) 100%);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
         border: 1px solid var(--line);
         border-radius: 24px;
         padding: 1.05rem 1.15rem 1rem 1.15rem;
         margin-bottom: 1rem;
-        box-shadow: 0 20px 52px rgba(2, 6, 23, 0.22);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
     }
     .hero-top {
         display: flex;
@@ -91,26 +87,26 @@ DARK_CSS = """
     }
     .hero-status {
         min-width: 190px;
-        background: rgba(124, 92, 255, 0.16);
-        border: 1px solid rgba(124, 92, 255, 0.20);
+        background: #eff6ff;
+        border: 1px solid rgba(37, 99, 235, 0.18);
         border-radius: 16px;
         padding: 0.75rem 0.85rem;
     }
     .hero-status-label {
-        color: #c5bcff;
+        color: #2563eb;
         font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         margin-bottom: 0.2rem;
     }
     .hero-status-value {
-        color: white;
+        color: #172033;
         font-weight: 800;
         font-size: 1.2rem;
         letter-spacing: -0.03em;
     }
     .hero-status-sub {
-        color: #c9d3e5;
+        color: #64748b;
         font-size: 0.74rem;
         margin-top: 0.1rem;
     }
@@ -126,9 +122,9 @@ DARK_CSS = """
         gap: 0.4rem;
         padding: 0.45rem 0.72rem;
         border-radius: 999px;
-        background: rgba(23, 32, 53, 0.95);
-        border: 1px solid rgba(148, 163, 184, 0.15);
-        color: #dee6f3;
+        background: #ffffff;
+        border: 1px solid rgba(15, 23, 42, 0.10);
+        color: #334155;
         font-size: 0.78rem;
     }
     .section-title {
@@ -153,8 +149,8 @@ DARK_CSS = """
         overflow: hidden;
         border-radius: 20px;
         padding: 1rem 1rem 0.95rem 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.16);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
         min-height: 132px;
         margin-bottom: 0.8rem;
     }
@@ -168,17 +164,17 @@ DARK_CSS = """
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.10);
     }
-    .kpi-card.primary-a { background: linear-gradient(135deg, #5b63ff 0%, #6f7cff 56%, #8194ff 100%); }
-    .kpi-card.primary-b { background: linear-gradient(135deg, #1f6fff 0%, #3d84ff 58%, #65a0ff 100%); }
-    .kpi-card.primary-c { background: linear-gradient(135deg, #0f9f7a 0%, #16b38a 58%, #31c99d 100%); }
+    .kpi-card.primary-a { background: linear-gradient(135deg, #2563eb 0%, #3b82f6 58%, #60a5fa 100%); color: #ffffff; }
+    .kpi-card.primary-b { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 58%, #67e8f9 100%); color: #ffffff; }
+    .kpi-card.primary-c { background: linear-gradient(135deg, #059669 0%, #10b981 58%, #6ee7b7 100%); color: #ffffff; }
     .kpi-card.primary-d {
-        background: linear-gradient(135deg, #f59e0b 0%, #f7b731 56%, #f8ca62 100%);
+        background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 56%, #fde68a 100%);
         color: #172033;
     }
     .kpi-card.primary-d .kpi-label,
     .kpi-card.primary-d .kpi-value { color: #172033; }
     .kpi-card.secondary {
-        background: linear-gradient(180deg, rgba(15, 21, 36, 0.98) 0%, rgba(18, 27, 45, 0.98) 100%);
+        background: #ffffff;
         border: 1px solid var(--line);
         min-height: 112px;
     }
@@ -203,21 +199,21 @@ DARK_CSS = """
         line-height: 1.05;
     }
     .chart-card {
-        background: linear-gradient(180deg, rgba(14, 19, 33, 0.98) 0%, rgba(18, 26, 42, 0.98) 100%);
+        background: #ffffff;
         border: 1px solid var(--line);
         border-radius: 24px;
         padding: 0.8rem 0.9rem 0.3rem 0.9rem;
-        box-shadow: 0 18px 42px rgba(2, 6, 23, 0.18);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
         margin-bottom: 0.9rem;
     }
     div[data-testid="stDataFrame"] {
         border: 1px solid var(--line);
         border-radius: 22px;
         overflow: hidden;
-        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.14);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
     }
     .stButton button {
-        background: linear-gradient(180deg, #7c5cff 0%, #5d3df5 100%);
+        background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
         color: white;
         border: none;
         border-radius: 14px;
@@ -351,7 +347,7 @@ def render_header(source_meta: pd.Series, matched_df: pd.DataFrame) -> None:
         <div class="hero-shell">
             <div class="hero-top">
                 <div>
-                    <div class="hero-title">바이럴 운영 관리사 대시보드</div>
+                    <div class="hero-title">바이럴 운영 대시보드</div>
                     <div class="hero-subtitle">공개 Google Sheets 원본 DB와 NT 성과 원본을 Python에서 집계해 통합한 운영형 Streamlit 대시보드</div>
                 </div>
                 <div class="hero-status">
@@ -965,15 +961,17 @@ def apply_count_yaxis(fig) -> None:
 def apply_common_layout(fig) -> None:
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(255,255,255,0.02)",
-        font=dict(color="#dde5f1"),
+        plot_bgcolor="#ffffff",
+        font=dict(color="#172033"),
         legend_title_text="",
         margin=dict(l=18, r=18, t=60, b=18),
-        hoverlabel=dict(bgcolor="#111827", font_color="#f8fafc"),
-        title_font=dict(size=18, color="#f8fafc"),
+        hoverlabel=dict(bgcolor="#ffffff", font_color="#172033", bordercolor="#dbe4f0"),
+        title_font=dict(size=18, color="#172033"),
     )
+    fig.update_xaxes(gridcolor="#e5eaf2", zerolinecolor="#dbe4f0")
+    fig.update_yaxes(gridcolor="#e5eaf2", zerolinecolor="#dbe4f0")
     fig.update_xaxes(showgrid=False, zeroline=False)
-    fig.update_yaxes(gridcolor="rgba(148, 163, 184, 0.18)", zeroline=False)
+    fig.update_yaxes(zeroline=False)
 
 
 def empty_figure(title: str):
