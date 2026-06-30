@@ -338,6 +338,7 @@ def match_paid_with_performance(
         lambda row: build_match_key(row["nt_source"], row["nt_detail"], row["nt_keyword"]),
         axis=1,
     )
+    perf_lookup = collapse_duplicate_match_keys(perf_lookup)
     perf_map = perf_lookup.set_index("match_key").to_dict(orient="index")
     perf_candidates = perf_lookup.to_dict(orient="records")
     used_perf_keys: set[str] = set()
@@ -402,6 +403,38 @@ def match_paid_with_performance(
 def build_primary_nt_source(row: pd.Series) -> str:
     candidates = build_nt_source_candidates(row)
     return candidates[0] if candidates else ""
+
+
+def collapse_duplicate_match_keys(perf_lookup: pd.DataFrame) -> pd.DataFrame:
+    if perf_lookup.empty or "match_key" not in perf_lookup.columns:
+        return perf_lookup
+
+    def first_non_empty(values: pd.Series) -> str:
+        for value in values:
+            cleaned = clean_text(value)
+            if cleaned:
+                return cleaned
+        return ""
+
+    def join_non_empty(values: pd.Series) -> str:
+        cleaned_values = [clean_text(value) for value in values]
+        return " | ".join(value for value in cleaned_values if value)
+
+    aggregations = {
+        "nt_source": first_non_empty,
+        "nt_detail": first_non_empty,
+        "nt_keyword": first_non_empty,
+        "perf_debug_rows": join_non_empty,
+        "perf_latest_collected_at": first_non_empty,
+    }
+    for metric in PERFORMANCE_METRICS:
+        aggregations[metric] = "sum"
+
+    return (
+        perf_lookup.groupby("match_key", dropna=False, as_index=False)
+        .agg(aggregations)
+        .reset_index(drop=True)
+    )
 
 
 def build_nt_source_candidates(row: pd.Series) -> list[str]:
